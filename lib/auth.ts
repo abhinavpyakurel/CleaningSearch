@@ -1,0 +1,15 @@
+export type ProfileRole = "client" | "cleaner";
+
+export function roleHomePath(role: string): string {
+  if (role === "cleaner") {
+    return "/cleaner/dashboard";
+  }
+  return "/client/home";
+}
+
+export function parseProfileRole(value: FormDataEntryValue | null): ProfileRole {
+  if (value === "cleaner") {
+    return "cleaner";
+  }
+  return "client";
+}
