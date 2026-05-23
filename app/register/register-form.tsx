@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
-import type { AuthActionState, registerAction } from "@/app/(auth)/register/actions";
-import type { ProfileRole } from "@/lib/auth";
+import type { AuthActionState, registerAction } from "@/app/register/actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,7 +16,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const initialState: AuthActionState = {};
 
@@ -31,54 +30,12 @@ function SubmitButton() {
   );
 }
 
-function RoleOption({
-  id,
-  label,
-  description,
-  value,
-  selected,
-  onSelect,
-}: {
-  id: string;
-  label: string;
-  description: string;
-  value: ProfileRole;
-  selected: boolean;
-  onSelect: (role: ProfileRole) => void;
-}) {
-  return (
-    <label
-      htmlFor={id}
-      className={cn(
-        "flex cursor-pointer flex-col gap-1 rounded-lg border p-3 transition-colors",
-        selected
-          ? "border-primary bg-primary/5 ring-1 ring-primary"
-          : "border-border hover:bg-muted/50"
-      )}
-    >
-      <div className="flex items-center gap-2">
-        <input
-          id={id}
-          type="radio"
-          name="role"
-          value={value}
-          checked={selected}
-          onChange={() => onSelect(value)}
-          className="size-4 accent-primary"
-        />
-        <span className="text-sm font-medium">{label}</span>
-      </div>
-      <span className="pl-6 text-xs text-muted-foreground">{description}</span>
-    </label>
-  );
-}
-
 export function RegisterForm({
   action,
 }: {
   action: typeof registerAction;
 }) {
-  const [role, setRole] = useState<ProfileRole>("client");
+  const [role, setRole] = useState("client");
   const [state, formAction] = useFormState(action, initialState);
 
   return (
@@ -90,6 +47,7 @@ export function RegisterForm({
         </CardDescription>
       </CardHeader>
       <form action={formAction}>
+        <input type="hidden" name="role" value={role} />
         <CardContent className="flex flex-col gap-4">
           {state.error ? (
             <p
@@ -106,30 +64,36 @@ export function RegisterForm({
           ) : null}
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-1 text-sm font-medium">I am signing up as</legend>
-            <div className="grid gap-2">
-              <RoleOption
-                id="role-client"
-                label="I need cleaning"
-                description="Book trusted cleaners for your home"
-                value="client"
-                selected={role === "client"}
-                onSelect={setRole}
-              />
-              <RoleOption
-                id="role-cleaner"
-                label="I'm a cleaner"
-                description="Offer services and manage your jobs"
-                value="cleaner"
-                selected={role === "cleaner"}
-                onSelect={setRole}
-              />
-            </div>
+            <RadioGroup
+              value={role}
+              onValueChange={(value) => setRole(value ?? "client")}
+              className="gap-2"
+            >
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 has-[[data-checked]]:border-primary has-[[data-checked]]:bg-primary/5 has-[[data-checked]]:ring-1 has-[[data-checked]]:ring-primary">
+                <RadioGroupItem value="client" id="role-client" />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium">I need cleaning</span>
+                  <span className="text-xs text-muted-foreground">
+                    Book trusted cleaners for your home
+                  </span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3 has-[[data-checked]]:border-primary has-[[data-checked]]:bg-primary/5 has-[[data-checked]]:ring-1 has-[[data-checked]]:ring-primary">
+                <RadioGroupItem value="cleaner" id="role-cleaner" />
+                <span className="flex flex-col gap-0.5">
+                  <span className="text-sm font-medium">I&apos;m a cleaner</span>
+                  <span className="text-xs text-muted-foreground">
+                    Offer services and manage your jobs
+                  </span>
+                </span>
+              </label>
+            </RadioGroup>
           </fieldset>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="fullName">Full name</Label>
+            <Label htmlFor="full_name">Full name</Label>
             <Input
-              id="fullName"
-              name="fullName"
+              id="full_name"
+              name="full_name"
               type="text"
               autoComplete="name"
               placeholder="Jane Doe"

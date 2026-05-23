@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 
-import type { AuthActionState, loginAction } from "@/app/(auth)/login/actions";
+import type { AuthActionState, loginAction } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -30,10 +30,8 @@ function SubmitButton() {
 
 export function LoginForm({
   action,
-  redirectTo,
 }: {
   action: typeof loginAction;
-  redirectTo?: string;
 }) {
   const [state, formAction] = useFormState(action, initialState);
 
@@ -46,9 +44,6 @@ export function LoginForm({
         </CardDescription>
       </CardHeader>
       <form action={formAction}>
-        {redirectTo ? (
-          <input type="hidden" name="redirectTo" value={redirectTo} />
-        ) : null}
         <CardContent className="flex flex-col gap-4">
           {state.error ? (
             <p

@@ -53,3 +53,28 @@ export async function getProfileRole(
 
   return { role: data?.role ?? null, error: null };
 }
+
+export async function getProfile(
+  supabase: SupabaseClient<Database>,
+  userId: string
+): Promise<{
+  role: string | null;
+  full_name: string | null;
+  error: string | null;
+}> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role, full_name")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (error) {
+    return { role: null, full_name: null, error: error.message };
+  }
+
+  return {
+    role: data?.role ?? null,
+    full_name: data?.full_name ?? null,
+    error: null,
+  };
+}

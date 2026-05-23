@@ -29,7 +29,7 @@ export async function registerAction(
 
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
-  const fullName = String(formData.get("fullName") ?? "").trim();
+  const fullName = String(formData.get("full_name") ?? "").trim();
   const role = parseProfileRole(formData.get("role"));
 
   if (!email || !password) {

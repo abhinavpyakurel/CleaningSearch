@@ -63,15 +63,10 @@ export async function loginAction(
     };
   }
 
+  if (role !== "client" && role !== "cleaner") {
+    return { error: "Unknown account type. Contact support." };
+  }
+
   revalidatePath("/", "layout");
-
-  const redirectTo = String(formData.get("redirectTo") ?? "").trim();
-  if (redirectTo.startsWith("/client") && role === "client") {
-    redirect(redirectTo);
-  }
-  if (redirectTo.startsWith("/cleaner") && role === "cleaner") {
-    redirect(redirectTo);
-  }
-
   redirect(roleHomePath(role));
 }
