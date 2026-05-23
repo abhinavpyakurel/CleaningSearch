@@ -1,0 +1,48 @@
+---
+description: CleanMatch web app conventions, routing, and business logic
+alwaysApply: true
+---
+
+# CleanMatch Web App — Project Rules
+
+## Stack
+- Next.js 14 App Router (TypeScript, strict mode)
+- Tailwind CSS for all styling
+- Supabase (Auth via SSR, PostgreSQL, Realtime, Storage)
+- Stripe Connect (destination charges, 15% platform commission)
+- shadcn/ui for component library
+- Deployed on Vercel
+
+## Routing Structure
+app/
+  (auth)/login/page.tsx
+  (auth)/register/page.tsx
+  (client)/home/page.tsx
+  (client)/book/page.tsx
+  (client)/bookings/page.tsx
+  (cleaner)/dashboard/page.tsx
+  (cleaner)/jobs/[id]/page.tsx
+  api/stripe/webhook/route.ts
+  api/stripe/create-payment-intent/route.ts
+  api/intake/route.ts
+
+## Intake estimator
+Use a simple deterministic estimator that calculates estimated_hours and suggested price range from bedrooms, bathrooms, and clean type. No external AI APIs.
+
+## Business Logic
+- Two roles: CLIENT and CLEANER
+- Cleaners set hourly rate; platform adds 15% service fee shown upfront before booking
+- Booking statuses: pending → confirmed → in_progress → completed → disputed → cancelled
+- Match score = proximity (40%) + rating (30%) + recency (20%) + preference_match (10%)
+- No automated deactivation. All flags require human review.
+
+## Code Rules
+- Always use Supabase SSR client (@supabase/ssr) for server components and route handlers
+- Use Supabase browser client only in client components
+- Enable RLS on every Supabase table — no exceptions
+- Never expose SUPABASE_SERVICE_ROLE_KEY or STRIPE_SECRET_KEY outside of /app/api/ or Edge Functions
+- Use server actions for form mutations where possible
+- shadcn/ui components only — do not install other UI libraries
+- Handle errors at top of functions (early return pattern)
+- TypeScript types must be generated from Supabase schema — no manual type writing
+- Commit after every working feature

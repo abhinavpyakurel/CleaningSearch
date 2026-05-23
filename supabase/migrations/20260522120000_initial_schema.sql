@@ -1,0 +1,2 @@
+-- Deprecated initial migration. Replaced by 20260523050812_initial_schema.sql.
+-- Intentionally left blank.
