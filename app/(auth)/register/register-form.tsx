@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 
-import { register, type AuthActionState } from "@/app/(auth)/actions";
+import type { AuthActionState, registerAction } from "@/app/(auth)/register/actions";
 import type { ProfileRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,9 +73,13 @@ function RoleOption({
   );
 }
 
-export function RegisterForm() {
+export function RegisterForm({
+  action,
+}: {
+  action: typeof registerAction;
+}) {
   const [role, setRole] = useState<ProfileRole>("client");
-  const [state, formAction] = useFormState(register, initialState);
+  const [state, formAction] = useFormState(action, initialState);
 
   return (
     <Card className="w-full max-w-md">
@@ -88,7 +92,10 @@ export function RegisterForm() {
       <form action={formAction}>
         <CardContent className="flex flex-col gap-4">
           {state.error ? (
-            <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p
+              role="alert"
+              className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               {state.error}
             </p>
           ) : null}
@@ -155,7 +162,10 @@ export function RegisterForm() {
           <SubmitButton />
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link
+              href="/login"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
               Sign in
             </Link>
           </p>

@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 
+import { loginAction } from "@/app/(auth)/login/actions";
 import { LoginForm } from "@/app/(auth)/login/login-form";
 import { roleHomePath } from "@/lib/auth";
+import { getProfileRole } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function LoginPage({
@@ -16,20 +18,15 @@ export default async function LoginPage({
   } = await supabase.auth.getUser();
 
   if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (profile) {
-      redirect(roleHomePath(profile.role));
+    const { role } = await getProfileRole(supabase, user.id);
+    if (role) {
+      redirect(roleHomePath(role));
     }
   }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background p-6">
-      <LoginForm redirectTo={redirectTo} />
+      <LoginForm action={loginAction} redirectTo={redirectTo} />
     </main>
   );
 }

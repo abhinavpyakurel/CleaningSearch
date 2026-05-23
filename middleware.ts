@@ -4,13 +4,13 @@ import { roleHomePath } from "@/lib/auth";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
-  const { supabase, supabaseResponse, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
+  const { supabase, supabaseResponse, user } = await updateSession(request);
 
-  const isClientRoute = pathname.startsWith("/client");
-  const isCleanerRoute = pathname.startsWith("/cleaner");
+  const isProtectedRoute =
+    pathname.startsWith("/client") || pathname.startsWith("/cleaner");
 
-  if (!isClientRoute && !isCleanerRoute) {
+  if (!isProtectedRoute) {
     return supabaseResponse;
   }
 
@@ -21,25 +21,25 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (!profile) {
+  if (profileError || !profile?.role) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isClientRoute && profile.role !== "client") {
+  if (pathname.startsWith("/client") && profile.role !== "client") {
     return NextResponse.redirect(
       new URL(roleHomePath(profile.role), request.url)
     );
   }
 
-  if (isCleanerRoute && profile.role !== "cleaner") {
+  if (pathname.startsWith("/cleaner") && profile.role !== "cleaner") {
     return NextResponse.redirect(
       new URL(roleHomePath(profile.role), request.url)
     );

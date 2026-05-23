@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 
-import { login, type AuthActionState } from "@/app/(auth)/actions";
+import type { AuthActionState, loginAction } from "@/app/(auth)/login/actions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -28,8 +28,14 @@ function SubmitButton() {
   );
 }
 
-export function LoginForm({ redirectTo }: { redirectTo?: string }) {
-  const [state, formAction] = useFormState(login, initialState);
+export function LoginForm({
+  action,
+  redirectTo,
+}: {
+  action: typeof loginAction;
+  redirectTo?: string;
+}) {
+  const [state, formAction] = useFormState(action, initialState);
 
   return (
     <Card className="w-full max-w-md">
@@ -45,13 +51,11 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
         ) : null}
         <CardContent className="flex flex-col gap-4">
           {state.error ? (
-            <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <p
+              role="alert"
+              className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               {state.error}
-            </p>
-          ) : null}
-          {state.message ? (
-            <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
-              {state.message}
             </p>
           ) : null}
           <div className="flex flex-col gap-2">
@@ -80,7 +84,10 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
           <SubmitButton />
           <p className="text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
-            <Link href="/register" className="font-medium text-primary underline-offset-4 hover:underline">
+            <Link
+              href="/register"
+              className="font-medium text-primary underline-offset-4 hover:underline"
+            >
               Create one
             </Link>
           </p>
