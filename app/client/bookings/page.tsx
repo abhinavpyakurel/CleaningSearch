@@ -4,10 +4,18 @@ import { redirect } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Tables } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 
-type Booking = Tables<"bookings">;
+type ClientBooking = {
+  id: string;
+  service_address: string | null;
+  scheduled_at: string | null;
+  duration_hours: number | null;
+  notes: string | null;
+  status: string;
+  cleaner_id: string | null;
+  cleaner_name: string | null;
+};
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Looking for cleaner",
@@ -66,7 +74,10 @@ function formatDuration(hours: number | null): string {
   return `${hours} ${label}`;
 }
 
-function BookingCard({ booking }: { booking: Booking }) {
+function BookingCard({ booking }: { booking: ClientBooking }) {
+  const showCleaner =
+    booking.cleaner_id != null && booking.cleaner_name != null;
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-2">
@@ -78,6 +89,12 @@ function BookingCard({ booking }: { booking: Booking }) {
         </Badge>
       </CardHeader>
       <CardContent className="flex flex-col gap-2 text-sm">
+        {showCleaner ? (
+          <p>
+            <span className="text-muted-foreground">Cleaner: </span>
+            {booking.cleaner_name}
+          </p>
+        ) : null}
         <p>
           <span className="text-muted-foreground">When: </span>
           {formatScheduledAt(booking.scheduled_at)}
@@ -120,7 +137,7 @@ export default async function BookingsPage() {
   const { data: bookings, error } = await supabase
     .from("bookings")
     .select(
-      "id, service_address, scheduled_at, duration_hours, notes, status"
+      "id, service_address, scheduled_at, duration_hours, notes, status, cleaner_id"
     )
     .eq("client_id", user.id)
     .order("scheduled_at", { ascending: false });
@@ -129,7 +146,47 @@ export default async function BookingsPage() {
     throw new Error(error.message);
   }
 
-  const list = bookings ?? [];
+  const rows = bookings ?? [];
+  const cleanerIds = [
+    ...new Set(
+      rows
+        .map((b) => b.cleaner_id)
+        .filter((id): id is string => id != null)
+    ),
+  ];
+
+  const cleanerNameById = new Map<string, string>();
+
+  if (cleanerIds.length > 0) {
+    const { data: cleanerProfiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", cleanerIds);
+
+    if (profilesError) {
+      throw new Error(profilesError.message);
+    }
+
+    for (const profile of cleanerProfiles ?? []) {
+      const name = profile.full_name?.trim();
+      if (name) {
+        cleanerNameById.set(profile.id, name);
+      }
+    }
+  }
+
+  const list: ClientBooking[] = rows.map((booking) => {
+    const cleanerName =
+      booking.cleaner_id != null
+        ? cleanerNameById.get(booking.cleaner_id) ?? null
+        : null;
+
+    return {
+      ...booking,
+      cleaner_name:
+        booking.cleaner_id != null && cleanerName ? cleanerName : null,
+    };
+  });
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col gap-6 p-4 sm:p-8">
