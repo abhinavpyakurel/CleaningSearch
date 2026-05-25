@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
+import { SiteHeader } from "@/components/site-header";
 
 type JobListing = {
   id: string;
@@ -141,6 +142,8 @@ export default async function CleanerDashboardPage() {
   const welcomeName = profile.full_name ?? user.email ?? "there";
 
   return (
+    <>
+    <SiteHeader/>
     <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col gap-6 p-8">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -244,5 +247,6 @@ export default async function CleanerDashboardPage() {
         )}
       </section>
     </main>
+    </>
   );
 }

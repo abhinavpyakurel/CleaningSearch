@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import type { Tables } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { SiteHeader } from "@/components/site-header";
 
 type AvailableCleaner = Pick<
   Tables<"cleaner_profiles">,
@@ -159,6 +160,8 @@ export default async function ClientCleanersPage() {
   const list = (cleaners ?? []) as AvailableCleaner[];
 
   return (
+    <>
+    <SiteHeader/>
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 p-4 sm:p-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -183,5 +186,6 @@ export default async function ClientCleanersPage() {
         </ul>
       )}
     </main>
+    </>
   );
 }

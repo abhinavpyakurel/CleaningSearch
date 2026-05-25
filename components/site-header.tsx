@@ -1,10 +1,16 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 
 import { Button } from "@/components/ui/button";
 import { getProfile } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 
 export async function SiteHeader() {
+  const pathname = headers().get("x-pathname") ?? "";
+  if (pathname === "/") {
+    return null;
+  }
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -28,20 +34,27 @@ export async function SiteHeader() {
               </Button>
               <Button render={<Link href="/register" />}>Sign up</Button>
             </>
-          ) : profile.role === "client" ? (
+          ) : (
             <>
-              <Button variant="ghost" render={<Link href="/client/bookings" />}>
-                My bookings
-              </Button>
-              <Button render={<Link href="/client/book" />}>
-                Book a cleaning
+              {profile.role === "client" ? (
+                <>
+                  <Button variant="ghost" render={<Link href="/client/bookings" />}>
+                    My bookings
+                  </Button>
+                  <Button render={<Link href="/client/cleaners" />}>
+                    Find a cleaner
+                  </Button>
+                </>
+              ) : profile.role === "cleaner" ? (
+                <Button render={<Link href="/cleaner/dashboard" />}>
+                  Dashboard
+                </Button>
+              ) : null}
+              <Button variant="ghost" render={<Link href="/logout" />}>
+                Log out
               </Button>
             </>
-          ) : profile.role === "cleaner" ? (
-            <Button render={<Link href="/cleaner/dashboard" />}>
-              Dashboard
-            </Button>
-          ) : null}
+          )}
         </nav>
       </div>
     </header>

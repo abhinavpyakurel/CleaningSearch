@@ -31,6 +31,11 @@ export default async function ClientBookPage({ searchParams }: ClientBookPagePro
 
   const cleanerId = searchParams?.cleaner_id ?? null;
 
+
+  if (!cleanerId) {
+    redirect("/client/cleaners");
+  }
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col gap-6 p-4 sm:p-8">
       <BookForm cleanerId={cleanerId} />

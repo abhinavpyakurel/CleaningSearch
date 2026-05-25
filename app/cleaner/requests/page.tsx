@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-
+import { SiteHeader } from "@/components/site-header";
 import {
   acceptRequestAction,
   declineRequestAction,
@@ -151,6 +151,8 @@ export default async function CleanerRequestsPage() {
   const requests = (bookings ?? []) as PendingRequest[];
 
   return (
+    <>  
+    <SiteHeader/>
     <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col gap-6 p-4 sm:p-8">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">
@@ -175,5 +177,6 @@ export default async function CleanerRequestsPage() {
         </ul>
       )}
     </main>
+    </>
   );
 }

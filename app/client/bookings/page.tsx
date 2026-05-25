@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
+import { SiteHeader } from "@/components/site-header";
 
 type ClientBooking = {
   id: string;
@@ -79,6 +80,8 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
     booking.cleaner_id != null && booking.cleaner_name != null;
 
   return (
+
+    
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-2">
         <CardTitle className="text-base font-medium leading-snug">
@@ -111,6 +114,7 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
         ) : null}
       </CardContent>
     </Card>
+    
   );
 }
 
@@ -189,6 +193,8 @@ export default async function BookingsPage() {
   });
 
   return (
+    <>
+    <SiteHeader/>
     <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col gap-6 p-4 sm:p-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">My bookings</h1>
@@ -212,5 +218,7 @@ export default async function BookingsPage() {
         </ul>
       )}
     </main>
+    </>
+    
   );
 }
