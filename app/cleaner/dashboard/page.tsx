@@ -149,6 +149,20 @@ export default async function CleanerDashboardPage() {
         <p className="mt-1 text-sm text-muted-foreground">Cleaner dashboard</p>
       </header>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Incoming requests</CardTitle>
+          <CardDescription>
+            Review and respond to booking requests sent directly to you.
+          </CardDescription>
+        </CardHeader>
+        <CardFooter>
+          <Button render={<Link href="/cleaner/requests" />}>
+            View incoming requests
+          </Button>
+        </CardFooter>
+      </Card>
+
       {!cleanerProfile ? (
         <Card>
           <CardHeader>

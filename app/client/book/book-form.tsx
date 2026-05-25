@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+
 const initialState: BookActionState = {};
 
 function SubmitButton() {
@@ -31,7 +32,11 @@ function SubmitButton() {
   );
 }
 
-export function BookForm() {
+type BookFormProps = {
+  cleanerId?: string | null;
+};
+
+export function BookForm({ cleanerId }: BookFormProps) {
   const [state, formAction] = useFormState(createBookingAction, initialState);
 
   return (
@@ -44,6 +49,10 @@ export function BookForm() {
         </CardDescription>
       </CardHeader>
       <form action={formAction} noValidate={false}>
+         {cleanerId && (
+        <input type="hidden" name="cleaner_id" value={cleanerId} />
+      )}
+      
         <CardContent className="flex flex-col gap-4">
           {state.error ? (
             <p

@@ -3,7 +3,13 @@ import { redirect } from "next/navigation";
 import { BookForm } from "@/app/client/book/book-form";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function ClientBookPage() {
+type ClientBookPageProps = {
+  searchParams: {
+    cleaner_id?: string;
+  };
+};
+
+export default async function ClientBookPage({ searchParams }: ClientBookPageProps) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -23,9 +29,11 @@ export default async function ClientBookPage() {
     redirect("/cleaner/dashboard");
   }
 
+  const cleanerId = searchParams?.cleaner_id ?? null;
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col gap-6 p-4 sm:p-8">
-      <BookForm />
+      <BookForm cleanerId={cleanerId} />
     </main>
   );
 }

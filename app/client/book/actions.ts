@@ -17,6 +17,7 @@ export async function createBookingAction(
   const time = formData.get("time") as string | null;
   const notesRaw = String(formData.get("notes") ?? "").trim();
   const durationRaw = String(formData.get("duration_hours") ?? "").trim();
+  const cleanerId = formData.get("cleaner_id") as string | null;
 
   if (!serviceAddress) {
     return { error: "Service address is required." };
@@ -65,6 +66,7 @@ export async function createBookingAction(
       scheduled_at,
       duration_hours: durationHours,
       notes: notesRaw || null,
+      cleaner_id: cleanerId || null,
       status: "pending",
     })
     .select("id")
