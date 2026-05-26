@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 
+import { sendNewBookingEmailToCleaner } from "@/lib/email/notifications";
 import { createClient } from "@/lib/supabase/server";
 
 export type BookActionState = {
@@ -74,6 +75,36 @@ export async function createBookingAction(
 
   if (error) {
     return { error: error.message };
+  }
+
+  if (cleanerId) {
+    try {
+      const { data: cleanerProfile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", cleanerId)
+        .maybeSingle();
+
+      if (cleanerProfile?.email) {
+        const { data: clientProfile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        await sendNewBookingEmailToCleaner({
+          cleanerEmail: cleanerProfile.email,
+          cleanerName: cleanerProfile.full_name,
+          clientName: clientProfile?.full_name ?? null,
+          bookingId: data.id,
+          scheduledAt: scheduled_at,
+          durationHours,
+          serviceAddress,
+        });
+      }
+    } catch (emailError) {
+      console.error("Failed to notify cleaner of new booking:", emailError);
+    }
   }
 
   redirect(`/client/book/confirm?booking_id=${data.id}`);

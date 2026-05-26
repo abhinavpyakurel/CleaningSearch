@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
+import {
+  sendBookingAcceptedEmailToClient,
+  sendBookingDeclinedEmailToClient,
+} from "@/lib/email/notifications";
 import { createClient } from "@/lib/supabase/server";
 
 async function getAuthenticatedCleaner() {
@@ -58,6 +62,57 @@ async function updatePendingRequest(
 
   if (!data) {
     return { error: "This request is no longer pending." };
+  }
+
+  try {
+    const { data: booking } = await supabase
+      .from("bookings")
+      .select("id, client_id, scheduled_at, duration_hours, service_address")
+      .eq("id", bookingId)
+      .maybeSingle();
+
+    if (booking?.client_id) {
+      const { data: clientProfile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", booking.client_id)
+        .maybeSingle();
+
+      if (clientProfile?.email) {
+        const { data: cleanerProfile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (
+          booking.scheduled_at &&
+          typeof booking.duration_hours === "number" &&
+          booking.service_address
+        ) {
+          const emailArgs = {
+            clientEmail: clientProfile.email,
+            clientName: clientProfile.full_name,
+            cleanerName: cleanerProfile?.full_name ?? null,
+            bookingId: booking.id,
+            scheduledAt: booking.scheduled_at,
+            durationHours: booking.duration_hours,
+            serviceAddress: booking.service_address,
+          };
+
+          if (status === "confirmed") {
+            await sendBookingAcceptedEmailToClient(emailArgs);
+          } else {
+            await sendBookingDeclinedEmailToClient(emailArgs);
+          }
+        }
+      }
+    }
+  } catch (emailError) {
+    console.error(
+      "EMAIL_DEBUG: Failed to notify client of booking decision:",
+      emailError
+    );
   }
 
   revalidatePath("/cleaner/requests");

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-
+import { CornerLeftDown } from "lucide-react";
 import {
   acceptJobAction,
   toggleCleanerAvailability,
@@ -137,7 +137,7 @@ export default async function CleanerDashboardPage() {
   return (
     <>
       <SiteHeader />
-      <div className="relative min-h-screen w-full bg-[#F5F5F0]">
+      <div className="relative min-h-screen max-w-screen bg-[#F5F5F0]">
         <div
           className="pointer-events-none absolute -right-16 -top-16 h-80 w-80 rounded-full bg-[#00695C] opacity-5"
           aria-hidden
@@ -154,8 +154,8 @@ export default async function CleanerDashboardPage() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">
-                  Incoming requests
+                <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900">
+                  Incoming requests <CornerLeftDown className="size-4" />
                 </h2>
               </div>
               <p className="mt-1 text-sm text-gray-500">
@@ -163,7 +163,7 @@ export default async function CleanerDashboardPage() {
               </p>
               <Link
                 href="/cleaner/requests"
-                className="mt-6 inline-block rounded-xl bg-[#00695C] px-6 py-3 font-semibold text-white transition-all hover:bg-[#004D40]"
+                className="mt-6 inline-block rounded-xl bg-[#00695C] px-6 py-3 font-semibold text-white transition-all hover:bg-[#00695C]/80 hover:text-white"
               >
                 View incoming requests
               </Link>
