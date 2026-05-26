@@ -1,16 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import type { Tables } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
@@ -72,46 +62,56 @@ function CleanerCard({ cleaner }: { cleaner: AvailableCleaner }) {
   const bio = truncateBio(cleaner.bio);
 
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader className="gap-2">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <CardTitle className="text-lg">{fullName}</CardTitle>
+    <div className="flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md">
+      <div>
+        <div className="flex items-start justify-between">
+          <h2 className="text-xl font-bold text-gray-900">{fullName}</h2>
           {isNewCleaner(cleaner.avg_rating) ? (
-            <Badge variant="secondary">New</Badge>
+            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-500">
+              New
+            </span>
           ) : (
-            <Badge variant="outline">★ {cleaner.avg_rating.toFixed(1)}</Badge>
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+              ★ {cleaner.avg_rating.toFixed(1)}
+            </span>
           )}
         </div>
-        <CardDescription className="text-base text-foreground">
-          {formatHourlyRate(cleaner.hourly_rate)}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col gap-2 text-sm">
-        <p className="text-muted-foreground">
-          {formatServiceRadius(cleaner.service_radius_miles)}
-        </p>
-        <p className="text-muted-foreground">
-          {formatJobsCompleted(cleaner.total_jobs)}
-        </p>
+
+        <div className="mt-3 space-y-1">
+          <p className="text-2xl font-bold text-[#00695C]">
+            {formatHourlyRate(cleaner.hourly_rate)}
+          </p>
+          <p className="text-sm text-gray-500">
+            {formatServiceRadius(cleaner.service_radius_miles)}
+          </p>
+          <p className="text-sm text-gray-500">
+            {formatJobsCompleted(cleaner.total_jobs)}
+          </p>
+        </div>
+
         {bio ? (
-          <p className="text-foreground/90">{bio}</p>
+          <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-gray-600">
+            {bio}
+          </p>
         ) : (
-          <p className="italic text-muted-foreground">No bio yet</p>
+          <p className="mt-3 line-clamp-2 text-sm italic leading-relaxed text-gray-400">
+            No bio yet
+          </p>
         )}
-      </CardContent>
-      <CardFooter>
-        <Button
-          className="w-full"
-          render={
-            <Link
-              href={`/client/book?cleaner_id=${encodeURIComponent(cleaner.user_id)}`}
-            />
-          }
+      </div>
+
+      <div className="mt-6">
+        <p className="mb-2 text-xs font-medium text-green-600">
+          ● Available now
+        </p>
+        <Link
+          href={`/client/book?cleaner_id=${encodeURIComponent(cleaner.user_id)}`}
+          className="block w-full rounded-xl bg-[#00695C] py-3 text-center font-semibold text-white transition-all duration-200 hover:bg-[#004D40]"
         >
           Book this cleaner
-        </Button>
-      </CardFooter>
-    </Card>
+        </Link>
+      </div>
+    </div>
   );
 }
 
@@ -161,31 +161,42 @@ export default async function ClientCleanersPage() {
 
   return (
     <>
-    <SiteHeader/>
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 p-4 sm:p-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Find a cleaner
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Browse available cleaners and book directly
-        </p>
-      </div>
+      <SiteHeader />
+      <div className="relative min-h-screen w-full overflow-hidden bg-[#F5F5F0]">
+        <div
+          className="pointer-events-none absolute -right-20 -top-20 h-96 w-96 rounded-full bg-[#00695C] opacity-5"
+          aria-hidden
+        />
 
-      {list.length === 0 ? (
-        <p className="text-muted-foreground">
-          No cleaners available right now. Check back soon.
-        </p>
-      ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {list.map((cleaner) => (
-            <li key={cleaner.user_id} className="min-h-0">
-              <CleanerCard cleaner={cleaner} />
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
+        <section className="relative mx-auto max-w-6xl px-6 pb-8 pt-12">
+          <h1 className="text-4xl font-bold text-gray-900">Find a cleaner</h1>
+          <p className="mt-2 text-lg text-gray-500">
+            Browse available cleaners and book directly
+          </p>
+        </section>
+
+        {list.length === 0 ? (
+          <section className="relative w-full py-24 text-center">
+            <p className="text-5xl" role="img" aria-label="Broom">
+              🧹
+            </p>
+            <p className="mt-4 text-xl font-semibold text-gray-700">
+              No cleaners available right now.
+            </p>
+            <p className="mt-2 text-sm text-gray-400">
+              Check back soon or invite a cleaner to join CleanMatch.
+            </p>
+          </section>
+        ) : (
+          <ul className="relative mx-auto grid max-w-6xl grid-cols-1 gap-6 px-6 pb-16 sm:grid-cols-2 lg:grid-cols-3">
+            {list.map((cleaner) => (
+              <li key={cleaner.user_id}>
+                <CleanerCard cleaner={cleaner} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </>
   );
 }

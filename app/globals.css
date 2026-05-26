@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,89 +8,353 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Decorative background blobs (TaskRabbit-style depth) */
+  .bg-blob {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .bg-blob::before {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+    z-index: 0;
+    border-radius: 60% 40% 55% 45% / 45% 55% 40% 60%;
+    background: color-mix(in srgb, var(--brand) 12%, transparent);
+  }
+
+  .bg-blob-tl::before {
+    width: min(520px, 85vw);
+    height: min(480px, 75vw);
+    top: -140px;
+    left: -120px;
+    border-radius: 55% 45% 60% 40% / 50% 60% 45% 55%;
+    background: color-mix(in srgb, var(--brand) 14%, transparent);
+  }
+
+  .bg-blob-tr::before {
+    width: min(420px, 70vw);
+    height: min(400px, 65vw);
+    top: -100px;
+    right: -100px;
+    left: auto;
+    border-radius: 45% 55% 50% 50% / 55% 45% 55% 45%;
+    background: color-mix(in srgb, var(--brand-light) 80%, transparent);
+  }
+
+  .bg-blob-br::before {
+    width: min(560px, 90vw);
+    height: min(520px, 80vw);
+    bottom: -180px;
+    right: -140px;
+    top: auto;
+    left: auto;
+    border-radius: 50% 50% 40% 60% / 60% 40% 50% 50%;
+    background: color-mix(in srgb, var(--brand) 8%, transparent);
+  }
+
+  .bg-blob-bl::before {
+    width: min(380px, 65vw);
+    height: min(360px, 60vw);
+    bottom: -120px;
+    left: -90px;
+    top: auto;
+    border-radius: 40% 60% 55% 45% / 45% 55% 60% 40%;
+    background: color-mix(in srgb, var(--brand) 10%, transparent);
+  }
+
+  .bg-blob > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .bg-blob-fixed::before {
+    position: fixed;
+    z-index: -1;
+  }
 }
 
 @layer base {
   .theme {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
+    --font-heading: "Inter", var(--font-sans), system-ui, sans-serif;
+    --font-sans: "Inter", system-ui, sans-serif;
   }
+
   :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.985 0 0);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    /* CleanMatch brand palette — rich teal (premium, trustworthy, “fresh clean”) */
+    --brand: #00695c;
+    --brand-light: rgba(0, 105, 92, 0.14);
+    --brand-dark: #004d40;
+    --background: #fafaf8;
+    --surface: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #555555;
+    --text-muted: #999999;
+    --border: #e5e5e5;
+    --success: #2e7d32;
+    --warning: #f59e0b;
+    --destructive: #c62828;
+
+    /* shadcn/ui — mapped to CleanMatch tokens (keeps components working) */
+    --foreground: var(--text-primary);
+    --card: var(--surface);
+    --card-foreground: var(--text-primary);
+    --popover: var(--surface);
+    --popover-foreground: var(--text-primary);
+    --primary: var(--brand);
+    --primary-foreground: #ffffff;
+    --secondary: color-mix(in srgb, var(--brand) 8%, var(--surface));
+    --secondary-foreground: var(--text-primary);
+    --muted: #f3f4f2;
+    --muted-foreground: var(--text-muted);
+    --accent: var(--brand-light);
+    --accent-foreground: var(--brand-dark);
+    --destructive-foreground: #ffffff;
+    --input: var(--border);
+    --ring: var(--brand);
+    --chart-1: var(--brand);
+    --chart-2: var(--success);
+    --chart-3: var(--warning);
+    --chart-4: var(--brand-dark);
+    --chart-5: var(--text-secondary);
+    --radius: 0.75rem;
+    --sidebar: var(--surface);
+    --sidebar-foreground: var(--text-primary);
+    --sidebar-primary: var(--brand);
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: var(--brand-light);
+    --sidebar-accent-foreground: var(--brand-dark);
+    --sidebar-border: var(--border);
+    --sidebar-ring: var(--brand);
+
+    /* Shadows (referenced by Tailwind shadow-card utilities) */
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+    --shadow-card-hover:
+      0 12px 28px -8px rgb(0 105 92 / 0.12), 0 8px 16px -8px rgb(0 0 0 / 0.08);
   }
+
   .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --destructive-foreground: oklch(0.985 0 0);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --background: #121816;
+    --surface: #1a2220;
+    --text-primary: #f5f5f4;
+    --text-secondary: #b8c4c1;
+    --text-muted: #7a8a86;
+    --border: rgb(255 255 255 / 12%);
+    --brand-light: rgba(0, 105, 92, 0.22);
+    --foreground: var(--text-primary);
+    --card: var(--surface);
+    --card-foreground: var(--text-primary);
+    --popover: var(--surface);
+    --popover-foreground: var(--text-primary);
+    --primary: #26a69a;
+    --primary-foreground: #0a1412;
+    --secondary: rgb(255 255 255 / 8%);
+    --secondary-foreground: var(--text-primary);
+    --muted: rgb(255 255 255 / 6%);
+    --muted-foreground: var(--text-muted);
+    --accent: var(--brand-light);
+    --accent-foreground: #80cbc4;
+    --destructive: #ef5350;
+    --destructive-foreground: #ffffff;
+    --input: var(--border);
+    --ring: #26a69a;
+    --sidebar: var(--surface);
+    --sidebar-foreground: var(--text-primary);
+    --sidebar-primary: #26a69a;
+    --sidebar-primary-foreground: #0a1412;
+    --sidebar-accent: var(--brand-light);
+    --sidebar-accent-foreground: #80cbc4;
+    --sidebar-border: var(--border);
+    --sidebar-ring: #26a69a;
+    --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.35);
+    --shadow-card-hover: 0 12px 28px -8px rgb(0 0 0 / 0.45);
   }
+
   * {
     @apply border-border;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
+
   html {
-    @apply font-sans;
+    @apply font-sans antialiased;
+  }
+
+  body {
+    @apply bg-background font-sans text-[length:1rem] leading-relaxed;
+    font-family: "Inter", system-ui, sans-serif;
+    color: var(--text-secondary);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: var(--text-primary);
+    font-family: "Inter", system-ui, sans-serif;
+  }
+
+  h1 {
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  p {
+    color: var(--text-secondary);
+  }
+
+  .text-muted,
+  .text-muted-foreground {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+  }
+
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [data-slot="button"],
+  [data-slot="input"],
+  [data-slot="card"] {
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  a:hover {
+    color: var(--brand-dark);
+  }
+}
+
+@layer components {
+  /* Card tokens — enhances shadcn Card via data-slot */
+  [data-slot="card"] {
+    border-radius: 1rem;
+    border-color: var(--border);
+    background-color: var(--surface);
+    box-shadow: var(--shadow-card);
+  }
+
+  [data-slot="card"]:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-1px);
+  }
+
+  /* Input tokens */
+  [data-slot="input"] {
+    border-color: var(--border);
+    border-radius: 0.75rem;
+  }
+
+  [data-slot="input"]:focus-visible {
+    border-color: var(--brand);
+    --tw-ring-color: color-mix(in srgb, var(--brand) 35%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 25%, transparent);
+  }
+
+  /* Primary button — shadcn default variant (color + motion only) */
+  [data-slot="button"].bg-primary {
+    background-color: var(--brand);
+    color: #ffffff;
+  }
+
+  [data-slot="button"].bg-primary:hover {
+    background-color: var(--brand-dark);
+    transform: scale(1.02);
+  }
+
+  [data-slot="button"].bg-primary:active {
+    transform: scale(0.99);
+  }
+
+  /* Primary button — full marketplace pill (opt-in utility) */
+  .btn-primary {
+    background-color: var(--brand);
+    color: #ffffff;
+    border-radius: 9999px;
+    padding-inline: 1.5rem;
+    padding-block: 0.75rem;
+    font-weight: 600;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--brand-dark);
+    transform: scale(1.02);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.99);
+  }
+
+  /* Secondary button tokens */
+  .btn-secondary {
+    border-width: 2px;
+    border-color: var(--brand);
+    color: var(--brand);
+    background-color: transparent;
+    border-radius: 9999px;
+    padding-inline: 1.5rem;
+    padding-block: 0.75rem;
+    font-weight: 600;
+  }
+
+  .btn-secondary:hover {
+    background-color: var(--brand-light);
+    color: var(--brand-dark);
+    transform: scale(1.02);
+  }
+
+  /* Badge / pill tokens */
+  .badge-pill,
+  [data-slot="badge"] {
+    border-radius: 9999px;
+    padding-inline: 0.75rem;
+    padding-block: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .badge-success {
+    background-color: color-mix(in srgb, var(--success) 14%, var(--surface));
+    color: var(--success);
+  }
+
+  .badge-warning {
+    background-color: color-mix(in srgb, var(--warning) 16%, var(--surface));
+    color: color-mix(in srgb, var(--warning) 85%, #1a1a1a);
+  }
+
+  .badge-destructive {
+    background-color: color-mix(in srgb, var(--destructive) 12%, var(--surface));
+    color: var(--destructive);
+  }
+
+  /* Optional explicit card utility for non-shadcn markup */
+  .card-surface {
+    border-radius: 1rem;
+    border: 1px solid var(--border);
+    background-color: var(--surface);
+    box-shadow: var(--shadow-card);
+  }
+
+  .card-surface:hover {
+    box-shadow: var(--shadow-card-hover);
+    transform: translateY(-1px);
   }
 }

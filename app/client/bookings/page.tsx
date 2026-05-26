@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Calendar, Clock, User } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 
@@ -31,18 +29,23 @@ function getStatusLabel(status: string): string {
   return STATUS_LABELS[status] ?? status;
 }
 
-function getStatusBadgeVariant(
-  status: string
-): "default" | "secondary" | "outline" {
+function getStatusBadgeClasses(status: string): string {
+  const base =
+    "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold";
+
   switch (status) {
-    case "completed":
-      return "default";
     case "pending":
+      return `${base} border-amber-200 bg-amber-50 text-amber-700`;
     case "confirmed":
     case "in_progress":
-      return "secondary";
+    case "completed":
+      return `${base} border-green-200 bg-green-50 text-green-700`;
+    case "cancelled":
+    case "declined":
+    case "disputed":
+      return `${base} border-red-200 bg-red-50 text-red-600`;
     default:
-      return "outline";
+      return `${base} border-amber-200 bg-amber-50 text-amber-700`;
   }
 }
 
@@ -80,41 +83,43 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
     booking.cleaner_id != null && booking.cleaner_name != null;
 
   return (
-
-    
-    <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-2">
-        <CardTitle className="text-base font-medium leading-snug">
+    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md">
+      <div className="flex items-start justify-between gap-4">
+        <p className="min-w-0 flex-1 text-lg font-bold text-gray-900">
           {booking.service_address ?? "No address"}
-        </CardTitle>
-        <Badge variant={getStatusBadgeVariant(booking.status)}>
+        </p>
+        <span className={getStatusBadgeClasses(booking.status)}>
           {getStatusLabel(booking.status)}
-        </Badge>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2 text-sm">
-        {showCleaner ? (
-          <p>
-            <span className="text-muted-foreground">Cleaner: </span>
-            {booking.cleaner_name}
-          </p>
-        ) : null}
-        <p>
-          <span className="text-muted-foreground">When: </span>
-          {formatScheduledAt(booking.scheduled_at)}
+        </span>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <User className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
+          <span className="min-w-0 truncate">
+            {showCleaner
+              ? `Cleaner: ${booking.cleaner_name}`
+              : "Looking for cleaner"}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Calendar className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
+          <span className="min-w-0">
+            {formatScheduledAt(booking.scheduled_at)}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Clock className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
+          <span>{formatDuration(booking.duration_hours)}</span>
+        </div>
+      </div>
+
+      {booking.notes ? (
+        <p className="mt-3 text-sm italic text-gray-400 whitespace-pre-wrap">
+          {booking.notes}
         </p>
-        <p>
-          <span className="text-muted-foreground">Duration: </span>
-          {formatDuration(booking.duration_hours)}
-        </p>
-        {booking.notes ? (
-          <p>
-            <span className="text-muted-foreground">Notes: </span>
-            <span className="whitespace-pre-wrap">{booking.notes}</span>
-          </p>
-        ) : null}
-      </CardContent>
-    </Card>
-    
+      ) : null}
+    </div>
   );
 }
 
@@ -194,31 +199,40 @@ export default async function BookingsPage() {
 
   return (
     <>
-    <SiteHeader/>
-    <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col gap-6 p-4 sm:p-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">My bookings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Your scheduled and past cleanings
-        </p>
-      </div>
+      <SiteHeader />
+      <div className="min-h-screen w-full bg-[#F5F5F0]">
+        <header className="mx-auto max-w-4xl px-6 pb-6 pt-12">
+          <h1 className="text-4xl font-bold text-gray-900">My bookings</h1>
+          <p className="mt-1 text-base text-gray-500">
+            Your scheduled and past cleanings
+          </p>
+        </header>
 
-      {list.length === 0 ? (
-        <div className="flex flex-col items-start gap-4 rounded-lg border border-dashed p-6">
-          <p className="text-muted-foreground">You have no bookings yet.</p>
-          <Button render={<Link href="/client/book" />}>Book a cleaning</Button>
-        </div>
-      ) : (
-        <ul className="flex flex-col gap-4">
-          {list.map((booking) => (
-            <li key={booking.id}>
-              <BookingCard booking={booking} />
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
+        {list.length === 0 ? (
+          <section className="mx-auto max-w-4xl px-6 py-24 text-center">
+            <p className="text-xl font-semibold text-gray-700">
+              No bookings yet.
+            </p>
+            <p className="mt-2 text-sm text-gray-400">
+              Find a cleaner to get started.
+            </p>
+            <Link
+              href="/client/cleaners"
+              className="mt-6 inline-block rounded-xl bg-[#00695C] px-6 py-3 font-semibold text-white transition-all hover:bg-[#004D40]"
+            >
+              Find a cleaner
+            </Link>
+          </section>
+        ) : (
+          <ul className="mx-auto max-w-4xl space-y-4 px-6 pb-16">
+            {list.map((booking) => (
+              <li key={booking.id}>
+                <BookingCard booking={booking} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </>
-    
   );
 }

@@ -1,17 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { acceptJobAction } from "@/app/cleaner/dashboard/actions";
-import { AvailabilityToggle } from "@/app/cleaner/dashboard/availability-toggle";
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  acceptJobAction,
+  toggleCleanerAvailability,
+} from "@/app/cleaner/dashboard/actions";
+import { CleanerStatsCard } from "@/app/cleaner/dashboard/cleaner-stats-card";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 
@@ -60,36 +55,34 @@ function JobCard({
   showAccept?: boolean;
 }) {
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-2 pt-6 text-sm">
+    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+      <div className="flex flex-col gap-2 text-sm text-gray-700">
         <p>
-          <span className="text-muted-foreground">Address: </span>
+          <span className="text-gray-500">Address: </span>
           {job.service_address ?? "—"}
         </p>
         <p>
-          <span className="text-muted-foreground">When: </span>
+          <span className="text-gray-500">When: </span>
           {formatScheduledAt(job.scheduled_at)}
         </p>
         <p>
-          <span className="text-muted-foreground">Duration: </span>
+          <span className="text-gray-500">Duration: </span>
           {formatDuration(job.duration_hours)}
         </p>
         {job.notes ? (
           <p>
-            <span className="text-muted-foreground">Notes: </span>
+            <span className="text-gray-500">Notes: </span>
             <span className="whitespace-pre-wrap">{job.notes}</span>
           </p>
         ) : null}
-      </CardContent>
+      </div>
       {showAccept ? (
-        <CardFooter>
-          <form action={acceptJobAction}>
-            <input type="hidden" name="booking_id" value={job.id} />
-            <Button type="submit">Accept job</Button>
-          </form>
-        </CardFooter>
+        <form action={acceptJobAction} className="mt-4">
+          <input type="hidden" name="booking_id" value={job.id} />
+          <Button type="submit">Accept job</Button>
+        </form>
       ) : null}
-    </Card>
+    </div>
   );
 }
 
@@ -116,7 +109,7 @@ export default async function CleanerDashboardPage() {
   const { data: cleanerProfile } = await supabase
     .from("cleaner_profiles")
     .select(
-      "hourly_rate, service_radius_miles, total_jobs, avg_rating, is_available"
+      "hourly_rate, service_radius_miles, bio, total_jobs, avg_rating, is_available"
     )
     .eq("user_id", user.id)
     .maybeSingle();
@@ -143,110 +136,138 @@ export default async function CleanerDashboardPage() {
 
   return (
     <>
-    <SiteHeader/>
-    <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col gap-6 p-8">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Welcome, {welcomeName}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Cleaner dashboard</p>
-      </header>
+      <SiteHeader />
+      <div className="relative min-h-screen w-full bg-[#F5F5F0]">
+        <div
+          className="pointer-events-none absolute -right-16 -top-16 h-80 w-80 rounded-full bg-[#00695C] opacity-5"
+          aria-hidden
+        />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Incoming requests</CardTitle>
-          <CardDescription>
-            Review and respond to booking requests sent directly to you.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter>
-          <Button render={<Link href="/cleaner/requests" />}>
-            View incoming requests
-          </Button>
-        </CardFooter>
-      </Card>
+        <section className="relative mx-auto max-w-5xl px-6 pb-8 pt-12">
+          <h1 className="text-4xl font-bold text-gray-900">
+            Welcome, {welcomeName}
+          </h1>
+          <p className="mt-1 text-base text-gray-500">Cleaner dashboard</p>
+        </section>
 
-      {!cleanerProfile ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Complete your cleaner profile</CardTitle>
-            <CardDescription>
-              Add your rates and service area to start receiving jobs.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button render={<Link href="/cleaner/onboarding" />}>
-              Finish onboarding
-            </Button>
-          </CardFooter>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Your stats</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2 text-sm">
-            <p>
-              <span className="text-muted-foreground">Hourly rate: </span>
-              {cleanerProfile.hourly_rate != null
-                ? `$${cleanerProfile.hourly_rate}/hr`
-                : "Not set"}
-            </p>
-            <p>
-              <span className="text-muted-foreground">Service radius: </span>
-              {cleanerProfile.service_radius_miles != null
-                ? `${cleanerProfile.service_radius_miles} mi`
-                : "Not set"}
-            </p>
-            <p>
-              <span className="text-muted-foreground">Total jobs: </span>
-              {cleanerProfile.total_jobs}
-            </p>
-            <p>
-              <span className="text-muted-foreground">Average rating: </span>
-              {cleanerProfile.avg_rating.toFixed(1)}
-            </p>
-          </CardContent>
-          <CardFooter className="border-t border-border pt-6">
-            <AvailabilityToggle initialAvailable={cleanerProfile.is_available} />
-          </CardFooter>
-        </Card>
-      )}
+        <div className="relative mx-auto max-w-5xl px-6 pb-16">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Incoming requests
+                </h2>
+              </div>
+              <p className="mt-1 text-sm text-gray-500">
+                Review and respond to booking requests sent directly to you.
+              </p>
+              <Link
+                href="/cleaner/requests"
+                className="mt-6 inline-block rounded-xl bg-[#00695C] px-6 py-3 font-semibold text-white transition-all hover:bg-[#004D40]"
+              >
+                View incoming requests
+              </Link>
+            </div>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Available jobs</h2>
-        {!availableJobs?.length ? (
-          <p className="text-sm text-muted-foreground">
-            No available jobs right now.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {availableJobs.map((job) => (
-              <li key={job.id}>
-                <JobCard job={job} showAccept />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+            {!cleanerProfile ? (
+              <div className="rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Complete your cleaner profile
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Add your rates and service area to start receiving jobs.
+                </p>
+                <Link
+                  href="/cleaner/onboarding"
+                  className="mt-6 inline-block rounded-xl bg-[#00695C] px-6 py-3 font-semibold text-white transition-all hover:bg-[#004D40]"
+                >
+                  Finish onboarding
+                </Link>
+              </div>
+            ) : (
+              <CleanerStatsCard
+                hourlyRate={cleanerProfile.hourly_rate}
+                serviceRadiusMiles={cleanerProfile.service_radius_miles}
+                bio={cleanerProfile.bio}
+                totalJobs={cleanerProfile.total_jobs}
+                avgRating={cleanerProfile.avg_rating}
+              />
+            )}
+          </div>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold">Your assigned jobs</h2>
-        {!myJobs?.length ? (
-          <p className="text-sm text-muted-foreground">
-            No assigned jobs yet.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {myJobs.map((job) => (
-              <li key={job.id}>
-                <JobCard job={job} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-    </main>
+          {cleanerProfile ? (
+            <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-8 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Job availability
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Let clients know whether you are open to new bookings.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                {cleanerProfile.is_available ? (
+                  <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
+                    ● Available for jobs
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-600">
+                    ○ Not available
+                  </span>
+                )}
+                <form action={toggleCleanerAvailability}>
+                  <button
+                    type="submit"
+                    className={
+                      cleanerProfile.is_available
+                        ? "rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-600 transition-all hover:border-red-300 hover:text-red-500"
+                        : "rounded-xl bg-[#00695C] px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-[#004D40]"
+                    }
+                  >
+                    {cleanerProfile.is_available
+                      ? "Go unavailable"
+                      : "Go available"}
+                  </button>
+                </form>
+              </div>
+            </div>
+          ) : null}
+
+          <section className="mt-10 flex flex-col gap-4">
+            <h2 className="text-xl font-bold text-gray-900">Available jobs</h2>
+            {!availableJobs?.length ? (
+              <p className="text-sm text-gray-500">
+                No available jobs right now.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-4">
+                {availableJobs.map((job) => (
+                  <li key={job.id}>
+                    <JobCard job={job} showAccept />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="mt-10 flex flex-col gap-4">
+            <h2 className="text-xl font-bold text-gray-900">
+              Your assigned jobs
+            </h2>
+            {!myJobs?.length ? (
+              <p className="text-sm text-gray-500">No assigned jobs yet.</p>
+            ) : (
+              <ul className="flex flex-col gap-4">
+                {myJobs.map((job) => (
+                  <li key={job.id}>
+                    <JobCard job={job} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      </div>
     </>
   );
 }
