@@ -153,16 +153,36 @@ export async function sendBookingAcceptedEmailToClient(args: {
   }
 }
 
-export async function sendBookingDeclinedEmailToClient(
-  args: BookingDecisionEmailArgs
-) {
-  const from = process.env.EMAIL_FROM ?? "CleanMatch <onboarding@resend.dev>";
-  const cleanerLabel = args.cleanerName?.trim() || "the cleaner";
+export async function sendBookingDeclinedEmailToClient(args: {
+  clientEmail: string;
+  clientName?: string | null;
+  cleanerName?: string | null;
+  bookingId: string;
+  scheduledAt: string;
+  durationHours: number;
+  serviceAddress: string;
+}) {
+  const from =
+    process.env.EMAIL_FROM ?? "CleanMatch <onboarding@resend.dev>";
+
+  const to = process.env.DEV_OVERRIDE_TO ?? args.clientEmail;
+  const greetingName = args.clientName?.trim() || "there";
+  const cleanerLabel = args.cleanerName?.trim() || "your cleaner";
+  const scheduledLabel = formatScheduledAt(args.scheduledAt);
+  const durationLabel =
+    args.durationHours === 1
+      ? "1 hour"
+      : `${args.durationHours} hours`;
 
   const html = `
-    <p>Thanks for your request. Unfortunately, <strong>${cleanerLabel}</strong> couldn’t take this booking.</p>
-    ${buildBookingDetailsHtml(args)}
-    <p>Please log in to CleanMatch and book another cleaner — we’ll help you find someone available.</p>
+    <p>Hi ${greetingName},</p>
+    <p>${cleanerLabel} has <strong>declined</strong> your cleaning request.</p>
+    <ul>
+      <li><strong>Date &amp; time:</strong> ${scheduledLabel}</li>
+      <li><strong>Duration:</strong> ${durationLabel}</li>
+      <li><strong>Address:</strong> ${args.serviceAddress}</li>
+    </ul>
+    <p>You can log in to CleanMatch to request another cleaner or create a new booking.</p>
   `.trim();
 
   try {
@@ -171,11 +191,12 @@ export async function sendBookingDeclinedEmailToClient(
       clientName: args.clientName,
       cleanerName: args.cleanerName,
       bookingId: args.bookingId,
+      to,
     });
 
     const result = await resend.emails.send({
       from,
-      to: [args.clientEmail],
+      to: [to],
       subject: "Your cleaning request was declined – CleanMatch",
       html,
     });

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Calendar, Clock, User } from "lucide-react";
 
+import { MarkCompleteForm } from "@/app/client/bookings/mark-complete-form";
+import { ReviewBookingForm } from "@/app/client/bookings/review-booking-form";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 
@@ -14,6 +16,7 @@ type ClientBooking = {
   status: string;
   cleaner_id: string | null;
   cleaner_name: string | null;
+  has_review: boolean;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -81,6 +84,10 @@ function formatDuration(hours: number | null): string {
 function BookingCard({ booking }: { booking: ClientBooking }) {
   const showCleaner =
     booking.cleaner_id != null && booking.cleaner_name != null;
+  const canMarkComplete =
+    booking.status === "confirmed" || booking.status === "in_progress";
+  const canReview =
+    booking.status === "completed" && !booking.has_review;
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md">
@@ -119,6 +126,14 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
           {booking.notes}
         </p>
       ) : null}
+
+      {canMarkComplete ? <MarkCompleteForm bookingId={booking.id} /> : null}
+
+      {canReview ? <ReviewBookingForm bookingId={booking.id} /> : null}
+
+      {booking.status === "completed" && booking.has_review ? (
+        <p className="mt-4 text-sm text-gray-500">Review submitted — thank you!</p>
+      ) : null}
     </div>
   );
 }
@@ -156,6 +171,26 @@ export default async function BookingsPage() {
   }
 
   const rows = bookings ?? [];
+  const bookingIds = rows.map((b) => b.id);
+
+  const reviewedBookingIds = new Set<string>();
+
+  if (bookingIds.length > 0) {
+    const { data: clientReviews, error: reviewsError } = await supabase
+      .from("reviews")
+      .select("booking_id")
+      .eq("reviewer_id", user.id)
+      .in("booking_id", bookingIds);
+
+    if (reviewsError) {
+      throw new Error(reviewsError.message);
+    }
+
+    for (const review of clientReviews ?? []) {
+      reviewedBookingIds.add(review.booking_id);
+    }
+  }
+
   const cleanerIds = [
     ...new Set(
       rows
@@ -176,10 +211,10 @@ export default async function BookingsPage() {
       throw new Error(profilesError.message);
     }
 
-    for (const profile of cleanerProfiles ?? []) {
-      const name = profile.full_name?.trim();
+    for (const profileRow of cleanerProfiles ?? []) {
+      const name = profileRow.full_name?.trim();
       if (name) {
-        cleanerNameById.set(profile.id, name);
+        cleanerNameById.set(profileRow.id, name);
       }
     }
   }
@@ -194,6 +229,7 @@ export default async function BookingsPage() {
       ...booking,
       cleaner_name:
         booking.cleaner_id != null && cleanerName ? cleanerName : null,
+      has_review: reviewedBookingIds.has(booking.id),
     };
   });
 

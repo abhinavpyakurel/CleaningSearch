@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 
 import type { Tables } from "@/lib/database.types";
 import { createClient } from "@/lib/supabase/server";
+import {
+  buildReviewStatsByReviewee,
+  type ReviewStats,
+} from "@/lib/reviews/stats";
 import { SiteHeader } from "@/components/site-header";
 
 type AvailableCleaner = Pick<
@@ -11,11 +15,11 @@ type AvailableCleaner = Pick<
   | "bio"
   | "hourly_rate"
   | "service_radius_miles"
-  | "avg_rating"
   | "total_jobs"
   | "is_available"
 > & {
   profiles: Pick<Tables<"profiles">, "full_name"> | null;
+  review_stats: ReviewStats | null;
 };
 
 function truncateBio(bio: string | null): string | null {
@@ -53,26 +57,39 @@ function formatJobsCompleted(totalJobs: number): string {
   return `${totalJobs} ${label} completed`;
 }
 
-function isNewCleaner(avgRating: number | null | undefined): boolean {
-  return avgRating == null || avgRating === 0;
+function formatReviewTrust(stats: ReviewStats | null): string | null {
+  if (!stats || stats.review_count === 0) {
+    return null;
+  }
+
+  const label = stats.review_count === 1 ? "review" : "reviews";
+  return `★ ${stats.average_rating.toFixed(1)} · ${stats.review_count} ${label}`;
 }
 
 function CleanerCard({ cleaner }: { cleaner: AvailableCleaner }) {
   const fullName = cleaner.profiles?.full_name?.trim() || "Cleaner";
   const bio = truncateBio(cleaner.bio);
+  const reviewTrust = formatReviewTrust(cleaner.review_stats);
 
   return (
     <div className="flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md">
       <div>
-        <div className="flex items-start justify-between">
-          <h2 className="text-xl font-bold text-gray-900">{fullName}</h2>
-          {isNewCleaner(cleaner.avg_rating) ? (
-            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-500">
-              New
+        <div className="flex items-start justify-between gap-2">
+          <h2 className="text-xl font-bold text-gray-900">
+            <Link
+              href={`/client/cleaners/${encodeURIComponent(cleaner.user_id)}`}
+              className="hover:text-[#00695C]"
+            >
+              {fullName}
+            </Link>
+          </h2>
+          {reviewTrust ? (
+            <span className="shrink-0 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
+              {reviewTrust}
             </span>
           ) : (
-            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">
-              ★ {cleaner.avg_rating.toFixed(1)}
+            <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-500">
+              New
             </span>
           )}
         </div>
@@ -100,10 +117,14 @@ function CleanerCard({ cleaner }: { cleaner: AvailableCleaner }) {
         )}
       </div>
 
-      <div className="mt-6">
-        <p className="mb-2 text-xs font-medium text-green-600">
-          ● Available now
-        </p>
+      <div className="mt-6 space-y-2">
+        <p className="text-xs font-medium text-green-600">● Available now</p>
+        <Link
+          href={`/client/cleaners/${encodeURIComponent(cleaner.user_id)}`}
+          className="block w-full rounded-xl border border-gray-200 py-2.5 text-center text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+        >
+          View profile & reviews
+        </Link>
         <Link
           href={`/client/book?cleaner_id=${encodeURIComponent(cleaner.user_id)}`}
           className="block w-full rounded-xl bg-[#00695C] py-3 text-center font-semibold text-white transition-all duration-200 hover:bg-[#004D40]"
@@ -143,21 +164,86 @@ export default async function ClientCleanersPage() {
       bio,
       hourly_rate,
       service_radius_miles,
-      avg_rating,
       total_jobs,
       is_available,
-      profiles ( full_name )
+      profiles:profiles!cleaner_profiles_user_id_fkey ( full_name )
     `
     )
     .eq("is_available", true)
-    .order("avg_rating", { ascending: false })
     .order("total_jobs", { ascending: false });
 
   if (error) {
     throw new Error(error.message);
   }
 
-  const list = (cleaners ?? []) as AvailableCleaner[];
+  const cleanerRows = cleaners ?? [];
+  const cleanerIds = cleanerRows.map((c) => c.user_id);
+
+  const fullNameByCleanerId = new Map<string, string | null>();
+
+  if (cleanerIds.length > 0) {
+    const { data: profileRows, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", cleanerIds);
+
+    if (profilesError) {
+      throw new Error(profilesError.message);
+    }
+
+    for (const row of profileRows ?? []) {
+      fullNameByCleanerId.set(row.id, row.full_name);
+    }
+  }
+
+  const baseList: Omit<AvailableCleaner, "review_stats">[] = cleanerRows.map(
+    (cleaner) => ({
+      ...cleaner,
+      profiles: {
+        full_name:
+          cleaner.profiles?.full_name ??
+          fullNameByCleanerId.get(cleaner.user_id) ??
+          null,
+      },
+    })
+  );
+
+  const reviewStatsByCleaner = new Map<string, ReviewStats>();
+
+  if (cleanerIds.length > 0) {
+    const { data: reviewRows, error: reviewsError } = await supabase
+      .from("reviews")
+      .select("reviewee_id, rating")
+      .in("reviewee_id", cleanerIds);
+
+    if (reviewsError) {
+      throw new Error(reviewsError.message);
+    }
+
+    const statsMap = buildReviewStatsByReviewee(reviewRows ?? []);
+    for (const [id, stats] of statsMap) {
+      reviewStatsByCleaner.set(id, stats);
+    }
+  }
+
+  const list: AvailableCleaner[] = baseList
+    .map((cleaner) => ({
+      ...cleaner,
+      review_stats: reviewStatsByCleaner.get(cleaner.user_id) ?? null,
+    }))
+    .sort((a, b) => {
+      const aRating = a.review_stats?.average_rating ?? 0;
+      const bRating = b.review_stats?.average_rating ?? 0;
+      if (bRating !== aRating) {
+        return bRating - aRating;
+      }
+      const aCount = a.review_stats?.review_count ?? 0;
+      const bCount = b.review_stats?.review_count ?? 0;
+      if (bCount !== aCount) {
+        return bCount - aCount;
+      }
+      return b.total_jobs - a.total_jobs;
+    });
 
   return (
     <>
