@@ -82,3 +82,11 @@ export async function registerAction(
   revalidatePath("/", "layout");
   redirect(roleHomePath(role));
 }
+
+export async function logout() {
+  const supabase = await createClient();
+
+  await supabase.auth.signOut();
+
+  redirect("/");
+}

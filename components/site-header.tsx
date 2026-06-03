@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 
+
 import { Button } from "@/components/ui/button";
 import { getProfile } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";

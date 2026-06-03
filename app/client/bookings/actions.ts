@@ -87,3 +87,83 @@ export async function markBookingCompletedAction(
   revalidatePath("/client/bookings");
   return { error: null };
 }
+
+export type CancelBookingState = { error: string | null };
+
+const CANCELLATION_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export async function cancelBookingAction(
+  _prevState: CancelBookingState,
+  formData: FormData
+): Promise<CancelBookingState> {
+  const bookingId = String(formData.get("booking_id") ?? "").trim();
+  if (!bookingId) {
+    return { error: "Invalid booking." };
+  }
+
+  const auth = await getAuthenticatedClient();
+  if (auth.error || !auth.user) {
+    return { error: auth.error ?? "Not authenticated." };
+  }
+
+  const { supabase, user } = auth;
+
+  const { data: booking, error: fetchError } = await supabase
+    .from("bookings")
+    .select("id, client_id, status, scheduled_at")
+    .eq("id", bookingId)
+    .maybeSingle();
+
+  if (fetchError) {
+    return { error: fetchError.message };
+  }
+
+  if (!booking) {
+    return { error: "Booking not found." };
+  }
+
+  if (booking.client_id !== user.id) {
+    return { error: "You cannot cancel this booking." };
+  }
+
+  if (booking.status !== "pending" && booking.status !== "confirmed") {
+    return { error: "This booking can no longer be cancelled." };
+  }
+
+  if (booking.status === "confirmed") {
+    const scheduledTime = booking.scheduled_at
+      ? new Date(booking.scheduled_at).getTime()
+      : NaN;
+
+    if (Number.isNaN(scheduledTime)) {
+      return { error: "This booking can no longer be cancelled." };
+    }
+
+    if (scheduledTime - Date.now() <= CANCELLATION_WINDOW_MS) {
+      return {
+        error:
+          "Confirmed bookings can't be cancelled within 24 hours of the scheduled time.",
+      };
+    }
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("bookings")
+    .update({ status: "cancelled" })
+    .eq("id", bookingId)
+    .eq("client_id", user.id)
+    .in("status", ["pending", "confirmed"])
+    .select("id")
+    .maybeSingle();
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  if (!updated) {
+    return { error: "Could not cancel booking." };
+  }
+
+  revalidatePath("/client/bookings");
+  return { error: null };
+}

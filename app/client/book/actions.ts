@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 
+import { computeBookingPricing } from "@/lib/booking-price";
 import { sendNewBookingEmailToCleaner } from "@/lib/email/notifications";
 import { createClient } from "@/lib/supabase/server";
 
@@ -59,6 +60,26 @@ export async function createBookingAction(
     redirect("/cleaner/dashboard");
   }
 
+  let base_price: number | null = null;
+  let platform_fee: number | null = null;
+  let total_price: number | null = null;
+
+  if (cleanerId) {
+    const { data: cleanerProfile } = await supabase
+      .from("cleaner_profiles")
+      .select("hourly_rate")
+      .eq("user_id", cleanerId)
+      .maybeSingle();
+
+    const hourlyRate = cleanerProfile?.hourly_rate;
+    if (hourlyRate != null && Number.isFinite(hourlyRate) && hourlyRate > 0) {
+      const pricing = computeBookingPricing(hourlyRate, durationHours);
+      base_price = pricing.base_price;
+      platform_fee = pricing.platform_fee;
+      total_price = pricing.total_price;
+    }
+  }
+
   const { data, error } = await supabase
     .from("bookings")
     .insert({
@@ -69,6 +90,9 @@ export async function createBookingAction(
       notes: notesRaw || null,
       cleaner_id: cleanerId || null,
       status: "pending",
+      base_price,
+      platform_fee,
+      total_price,
     })
     .select("id")
     .single();

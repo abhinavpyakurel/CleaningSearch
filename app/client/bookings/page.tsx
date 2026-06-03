@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Calendar, Clock, User } from "lucide-react";
 
+import { CancelBookingForm } from "@/app/client/bookings/cancel-booking-form";
 import { MarkCompleteForm } from "@/app/client/bookings/mark-complete-form";
 import { ReviewBookingForm } from "@/app/client/bookings/review-booking-form";
 import { createClient } from "@/lib/supabase/server";
@@ -88,6 +89,8 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
     booking.status === "confirmed" || booking.status === "in_progress";
   const canReview =
     booking.status === "completed" && !booking.has_review;
+  const canCancel =
+    booking.status === "pending" || booking.status === "confirmed";
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md">
@@ -127,13 +130,24 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
         </p>
       ) : null}
 
+      
+      <div className="mt-4 flex items-center justify-between ">
       {canMarkComplete ? <MarkCompleteForm bookingId={booking.id} /> : null}
+
+      {canCancel ? <CancelBookingForm bookingId={booking.id} /> : null}
 
       {canReview ? <ReviewBookingForm bookingId={booking.id} /> : null}
 
       {booking.status === "completed" && booking.has_review ? (
         <p className="mt-4 text-sm text-gray-500">Review submitted — thank you!</p>
       ) : null}
+
+      </div>
+
+
+
+
+
     </div>
   );
 }
