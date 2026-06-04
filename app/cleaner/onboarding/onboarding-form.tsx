@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ProfilePhotoUrlField } from "@/app/cleaner/onboarding/profile-photo-url-field";
 import { Textarea } from "@/components/ui/textarea";
 
 const initialState: OnboardingActionState = {};
@@ -27,6 +28,7 @@ type OnboardingFormProps = {
   defaultHourlyRate: string;
   defaultServiceRadius: string;
   defaultYearsExperience: string;
+  defaultProfilePhotoUrl: string;
 };
 
 function SubmitButton() {
@@ -45,6 +47,7 @@ export function OnboardingForm({
   defaultHourlyRate,
   defaultServiceRadius,
   defaultYearsExperience,
+  defaultProfilePhotoUrl,
 }: OnboardingFormProps) {
   const [state, formAction] = useFormState(onboardingAction, initialState);
 
@@ -123,6 +126,7 @@ export function OnboardingForm({
               defaultValue={defaultYearsExperience}
             />
           </div>
+          <ProfilePhotoUrlField defaultValue={defaultProfilePhotoUrl} />
         </CardContent>
         <CardFooter>
           <SubmitButton />

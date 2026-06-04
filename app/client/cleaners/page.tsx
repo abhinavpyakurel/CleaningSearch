@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import type { Tables } from "@/lib/database.types";
+import { isCleanerPubliclyVisible } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import {
   buildReviewStatsByReviewee,
@@ -17,6 +18,7 @@ type AvailableCleaner = Pick<
   | "service_radius_miles"
   | "total_jobs"
   | "is_available"
+  | "profile_photo_url"
 > & {
   profiles: Pick<Tables<"profiles">, "full_name"> | null;
   review_stats: ReviewStats | null;
@@ -70,10 +72,19 @@ function CleanerCard({ cleaner }: { cleaner: AvailableCleaner }) {
   const fullName = cleaner.profiles?.full_name?.trim() || "Cleaner";
   const bio = truncateBio(cleaner.bio);
   const reviewTrust = formatReviewTrust(cleaner.review_stats);
+  const photoUrl = cleaner.profile_photo_url?.trim() ?? "";
 
   return (
     <div className="flex flex-col justify-between rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md">
       <div>
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photoUrl}
+            alt={`${fullName} profile`}
+            className="mb-4 h-16 w-16 rounded-full border border-gray-100 object-cover"
+          />
+        ) : null}
         <div className="flex items-start justify-between gap-2">
           <h2 className="text-xl font-bold text-gray-900">
             <Link
@@ -166,6 +177,7 @@ export default async function ClientCleanersPage() {
       service_radius_miles,
       total_jobs,
       is_available,
+      profile_photo_url,
       profiles:profiles!cleaner_profiles_user_id_fkey ( full_name )
     `
     )
@@ -227,6 +239,16 @@ export default async function ClientCleanersPage() {
   }
 
   const list: AvailableCleaner[] = baseList
+    .filter((cleaner) =>
+      isCleanerPubliclyVisible({
+        full_name: cleaner.profiles?.full_name ?? null,
+        bio: cleaner.bio,
+        hourly_rate: cleaner.hourly_rate,
+        service_radius_miles: cleaner.service_radius_miles,
+        profile_photo_url: cleaner.profile_photo_url,
+        is_available: cleaner.is_available,
+      })
+    )
     .map((cleaner) => ({
       ...cleaner,
       review_stats: reviewStatsByCleaner.get(cleaner.user_id) ?? null,

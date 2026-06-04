@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { normalizeProfilePhotoUrl } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 
 export type OnboardingActionState = {
@@ -30,9 +31,16 @@ export async function onboardingAction(
 ): Promise<OnboardingActionState> {
   const fullName = String(formData.get("full_name") ?? "").trim();
   const bio = String(formData.get("bio") ?? "").trim();
+  const profilePhotoUrl = normalizeProfilePhotoUrl(
+    String(formData.get("profile_photo_url") ?? "")
+  );
 
   if (!fullName) {
     return { error: "Full name is required." };
+  }
+
+  if (!profilePhotoUrl) {
+    return { error: "Profile photo URL is required." };
   }
 
   const hourlyRateResult = parseRequiredNumber(
@@ -107,6 +115,7 @@ export async function onboardingAction(
     {
       user_id: user.id,
       bio: bio || null,
+      profile_photo_url: profilePhotoUrl,
       hourly_rate: hourlyRate,
       service_radius_miles: Math.round(serviceRadius),
       years_experience: yearsExperience,

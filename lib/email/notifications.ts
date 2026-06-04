@@ -66,35 +66,6 @@ export async function sendNewBookingEmailToCleaner(args: NewBookingArgs) {
   }
 }
 
-type BookingDecisionEmailArgs = {
-  clientEmail: string;
-  clientName?: string | null;
-  cleanerName?: string | null;
-  bookingId: string;
-  scheduledAt: string;
-  durationHours: number;
-  serviceAddress: string;
-};
-
-function formatDurationHours(durationHours: number): string {
-  return durationHours === 1 ? "1 hour" : `${durationHours} hours`;
-}
-
-function buildBookingDetailsHtml(args: BookingDecisionEmailArgs): string {
-  const greetingName = args.clientName?.trim() || "there";
-  const scheduledLabel = formatScheduledAt(args.scheduledAt);
-  const durationLabel = formatDurationHours(args.durationHours);
-
-  return `
-    <p>Hi ${greetingName},</p>
-    <ul>
-      <li><strong>Date &amp; time:</strong> ${scheduledLabel}</li>
-      <li><strong>Duration:</strong> ${durationLabel}</li>
-      <li><strong>Address:</strong> ${args.serviceAddress}</li>
-    </ul>
-  `.trim();
-}
-
 export async function sendBookingAcceptedEmailToClient(args: {
   clientEmail: string;
   clientName?: string | null;

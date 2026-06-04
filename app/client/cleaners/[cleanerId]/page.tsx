@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import type { Tables } from "@/lib/database.types";
+import { isCleanerPubliclyVisible } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { buildReviewStatsByReviewee } from "@/lib/reviews/stats";
 import { SiteHeader } from "@/components/site-header";
@@ -14,6 +15,7 @@ type CleanerDetail = Pick<
   | "service_radius_miles"
   | "total_jobs"
   | "is_available"
+  | "profile_photo_url"
 > & {
   profiles: Pick<Tables<"profiles">, "full_name"> | null;
 };
@@ -88,6 +90,7 @@ export default async function CleanerProfilePage({
       service_radius_miles,
       total_jobs,
       is_available,
+      profile_photo_url,
       profiles ( full_name )
     `
     )
@@ -104,6 +107,21 @@ export default async function CleanerProfilePage({
 
   const detail = cleaner as CleanerDetail;
   const fullName = detail.profiles?.full_name?.trim() || "Cleaner";
+
+  if (
+    !isCleanerPubliclyVisible({
+      full_name: detail.profiles?.full_name ?? null,
+      bio: detail.bio,
+      hourly_rate: detail.hourly_rate,
+      service_radius_miles: detail.service_radius_miles,
+      profile_photo_url: detail.profile_photo_url,
+      is_available: detail.is_available,
+    })
+  ) {
+    notFound();
+  }
+
+  const photoUrl = detail.profile_photo_url?.trim() ?? "";
 
   const { data: reviewRows, error: reviewsError } = await supabase
     .from("reviews")
@@ -142,6 +160,14 @@ export default async function CleanerProfilePage({
           </Link>
 
           <header className="mt-6 rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
+            {photoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={photoUrl}
+                alt={`${fullName} profile`}
+                className="mb-4 h-28 w-28 rounded-full border border-gray-100 object-cover"
+              />
+            ) : null}
             <h1 className="text-3xl font-bold text-gray-900">{fullName}</h1>
             <p className="mt-2 text-2xl font-bold text-[#00695C]">
               {formatHourlyRate(detail.hourly_rate)}

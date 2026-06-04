@@ -78,3 +78,57 @@ export async function getProfile(
     error: null,
   };
 }
+
+export type CleanerMarketplaceProfile = {
+  full_name: string | null;
+  bio: string | null;
+  hourly_rate: number | null;
+  service_radius_miles: number | null;
+  profile_photo_url: string | null;
+  is_available: boolean;
+};
+
+export function normalizeProfilePhotoUrl(
+  value: string | null | undefined
+): string | null {
+  const trimmed = value?.trim() ?? "";
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function isCleanerPubliclyVisible(
+  profile: CleanerMarketplaceProfile
+): boolean {
+  if (!profile.is_available) {
+    return false;
+  }
+
+  if (!profile.full_name?.trim()) {
+    return false;
+  }
+
+  if (!profile.bio?.trim()) {
+    return false;
+  }
+
+  if (
+    profile.hourly_rate == null ||
+    !Number.isFinite(profile.hourly_rate) ||
+    profile.hourly_rate <= 0
+  ) {
+    return false;
+  }
+
+  if (
+    profile.service_radius_miles == null ||
+    !Number.isFinite(profile.service_radius_miles) ||
+    profile.service_radius_miles <= 0
+  ) {
+    return false;
+  }
+
+  if (!normalizeProfilePhotoUrl(profile.profile_photo_url)) {
+    return false;
+  }
+
+  return true;
+}
