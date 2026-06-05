@@ -11,6 +11,12 @@ export type BookingPricing = {
   total_price: number;
 };
 
+export type BookingPricingCents = {
+  service_price_cents: number;
+  platform_fee_cents: number;
+  total_price_cents: number;
+};
+
 export function computeBookingPricing(
   hourlyRate: number,
   durationHours: number
@@ -20,6 +26,19 @@ export function computeBookingPricing(
   const total_price = round2(base_price + platform_fee);
 
   return { base_price, platform_fee, total_price };
+}
+
+export function computeBookingPricingCents(
+  hourlyRate: number,
+  clientRequestedHours: number
+): BookingPricingCents {
+  const service_price_cents = Math.round(hourlyRate * clientRequestedHours * 100);
+  const platform_fee_cents = Math.round(
+    service_price_cents * PLATFORM_SERVICE_FEE_RATE
+  );
+  const total_price_cents = service_price_cents + platform_fee_cents;
+
+  return { service_price_cents, platform_fee_cents, total_price_cents };
 }
 
 type BookingPriceFields = {
@@ -58,6 +77,14 @@ export function formatUsd(amount: number | null): string {
 
   const rounded = Number.isInteger(amount) ? amount : amount.toFixed(2);
   return `$${rounded}`;
+}
+
+export function formatUsdFromCents(cents: number | null): string {
+  if (cents == null || !Number.isFinite(cents)) {
+    return "—";
+  }
+
+  return formatUsd(cents / 100);
 }
 
 export function formatHourlyRate(rate: number | null): string {

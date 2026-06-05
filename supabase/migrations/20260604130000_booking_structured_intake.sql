@@ -1,0 +1,21 @@
+-- Structured intake scope and rule-based quote fields on bookings
+ALTER TABLE public.bookings
+  ADD COLUMN IF NOT EXISTS home_type text,
+  ADD COLUMN IF NOT EXISTS bedrooms integer,
+  ADD COLUMN IF NOT EXISTS bathrooms numeric,
+  ADD COLUMN IF NOT EXISTS square_feet_range text,
+  ADD COLUMN IF NOT EXISTS service_type text,
+  ADD COLUMN IF NOT EXISTS mess_level text,
+  ADD COLUMN IF NOT EXISTS has_pets boolean,
+  ADD COLUMN IF NOT EXISTS supplies_needed boolean,
+  ADD COLUMN IF NOT EXISTS extra_tasks jsonb,
+  ADD COLUMN IF NOT EXISTS special_requests text,
+  ADD COLUMN IF NOT EXISTS recommended_hours numeric,
+  ADD COLUMN IF NOT EXISTS minimum_hours numeric,
+  ADD COLUMN IF NOT EXISTS maximum_hours numeric,
+  ADD COLUMN IF NOT EXISTS client_requested_hours numeric,
+  ADD COLUMN IF NOT EXISTS hourly_rate_snapshot numeric,
+  ADD COLUMN IF NOT EXISTS service_price_cents integer,
+  ADD COLUMN IF NOT EXISTS platform_fee_cents integer,
+  ADD COLUMN IF NOT EXISTS total_price_cents integer,
+  ADD COLUMN IF NOT EXISTS scope_snapshot jsonb;

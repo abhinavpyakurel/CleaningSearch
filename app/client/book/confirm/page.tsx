@@ -10,6 +10,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  formatUsd,
+  formatUsdFromCents,
+  getBookingTotalAmount,
+} from "@/lib/booking-price";
+import {
+  getServiceTypeLabel,
+  SERVICE_TYPES,
+  type ServiceType,
+} from "@/lib/intake-estimate";
 import { createClient } from "@/lib/supabase/server";
 
 type BookingConfirmPageProps = {
@@ -42,7 +52,20 @@ function formatDuration(hours: number | null): string {
   }
 
   const label = hours === 1 ? "hour" : "hours";
-  return `${hours} ${label}`;
+  const display = Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
+  return `${display} ${label}`;
+}
+
+function formatServiceType(value: string | null): string {
+  if (!value) {
+    return "—";
+  }
+
+  if (SERVICE_TYPES.includes(value as ServiceType)) {
+    return getServiceTypeLabel(value as ServiceType);
+  }
+
+  return value;
 }
 
 export default async function BookingConfirmPage({
@@ -65,7 +88,7 @@ export default async function BookingConfirmPage({
   const { data: booking } = await supabase
     .from("bookings")
     .select(
-      "service_address, scheduled_at, duration_hours, notes, status"
+      "service_address, scheduled_at, duration_hours, client_requested_hours, recommended_hours, service_type, special_requests, notes, status, total_price, total_price_cents, base_price, platform_fee"
     )
     .eq("id", bookingId)
     .eq("client_id", user.id)
@@ -74,6 +97,14 @@ export default async function BookingConfirmPage({
   if (!booking) {
     redirect("/client/home");
   }
+
+  const requestedHours =
+    booking.client_requested_hours ?? booking.duration_hours;
+  const totalAmount =
+    booking.total_price_cents != null
+      ? formatUsdFromCents(booking.total_price_cents)
+      : formatUsd(getBookingTotalAmount(booking));
+  const specialRequests = booking.special_requests ?? booking.notes;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col gap-6 p-4 sm:p-8">
@@ -88,9 +119,7 @@ export default async function BookingConfirmPage({
               <dt className="font-medium text-muted-foreground">
                 Service address
               </dt>
-              <dd className="mt-1">
-                {booking.service_address ?? "—"}
-              </dd>
+              <dd className="mt-1">{booking.service_address ?? "—"}</dd>
             </div>
             <div>
               <dt className="font-medium text-muted-foreground">
@@ -101,15 +130,39 @@ export default async function BookingConfirmPage({
               </dd>
             </div>
             <div>
-              <dt className="font-medium text-muted-foreground">Duration</dt>
+              <dt className="font-medium text-muted-foreground">
+                Service type
+              </dt>
               <dd className="mt-1">
-                {formatDuration(booking.duration_hours)}
+                {formatServiceType(booking.service_type)}
               </dd>
             </div>
-            {booking.notes ? (
+            <div>
+              <dt className="font-medium text-muted-foreground">
+                Recommended hours
+              </dt>
+              <dd className="mt-1">
+                {formatDuration(booking.recommended_hours)}
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-muted-foreground">
+                Requested hours
+              </dt>
+              <dd className="mt-1">{formatDuration(requestedHours)}</dd>
+            </div>
+            <div>
+              <dt className="font-medium text-muted-foreground">
+                Estimated total
+              </dt>
+              <dd className="mt-1">{totalAmount}</dd>
+            </div>
+            {specialRequests ? (
               <div>
-                <dt className="font-medium text-muted-foreground">Notes</dt>
-                <dd className="mt-1 whitespace-pre-wrap">{booking.notes}</dd>
+                <dt className="font-medium text-muted-foreground">
+                  Special requests
+                </dt>
+                <dd className="mt-1 whitespace-pre-wrap">{specialRequests}</dd>
               </div>
             ) : null}
           </dl>
