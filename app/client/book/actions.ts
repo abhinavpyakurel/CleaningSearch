@@ -8,18 +8,31 @@ import {
 } from "@/lib/booking-price";
 import { sendNewBookingEmailToCleaner } from "@/lib/email/notifications";
 import {
+  AREA_CONDITIONS,
+  CLUTTER_LEVELS,
   estimateIntake,
   EXTRA_TASKS,
+  FLOOR_TYPES,
+  homeConditionToMessLevel,
+  HOME_CONDITIONS,
   HOME_TYPES,
-  MESS_LEVELS,
+  LAST_CLEANED_OPTIONS,
+  PET_HAIR_LEVELS,
   SERVICE_TYPES,
   SQUARE_FEET_RANGES,
+  VISIT_TYPES,
+  type AreaCondition,
+  type ClutterLevel,
   type ExtraTask,
+  type FloorType,
+  type HomeCondition,
   type HomeType,
   type IntakeInput,
-  type MessLevel,
+  type LastCleaned,
+  type PetHairLevel,
   type ServiceType,
   type SquareFeetRange,
+  type VisitType,
 } from "@/lib/intake-estimate";
 import { createClient } from "@/lib/supabase/server";
 
@@ -43,21 +56,60 @@ function isServiceType(value: string): value is ServiceType {
   return (SERVICE_TYPES as readonly string[]).includes(value);
 }
 
-function isMessLevel(value: string): value is MessLevel {
-  return (MESS_LEVELS as readonly string[]).includes(value);
+function isVisitType(value: string): value is VisitType {
+  return (VISIT_TYPES as readonly string[]).includes(value);
+}
+
+function isHomeCondition(value: string): value is HomeCondition {
+  return (HOME_CONDITIONS as readonly string[]).includes(value);
+}
+
+function isClutterLevel(value: string): value is ClutterLevel {
+  return (CLUTTER_LEVELS as readonly string[]).includes(value);
+}
+
+function isAreaCondition(value: string): value is AreaCondition {
+  return (AREA_CONDITIONS as readonly string[]).includes(value);
+}
+
+function isPetHairLevel(value: string): value is PetHairLevel {
+  return (PET_HAIR_LEVELS as readonly string[]).includes(value);
+}
+
+function isFloorType(value: string): value is FloorType {
+  return (FLOOR_TYPES as readonly string[]).includes(value);
+}
+
+function isLastCleaned(value: string): value is LastCleaned {
+  return (LAST_CLEANED_OPTIONS as readonly string[]).includes(value);
 }
 
 function isExtraTask(value: string): value is ExtraTask {
   return (EXTRA_TASKS as readonly string[]).includes(value);
 }
 
-function parseIntakeFromFormData(formData: FormData): IntakeInput | BookActionState {
+function parseIntakeFromFormData(
+  formData: FormData
+): IntakeInput | { error: string } {
+  const visitType = String(formData.get("visit_type") ?? "").trim();
   const homeType = String(formData.get("home_type") ?? "").trim();
   const bedroomsRaw = String(formData.get("bedrooms") ?? "").trim();
   const bathroomsRaw = String(formData.get("bathrooms") ?? "").trim();
   const squareFeetRange = String(formData.get("square_feet_range") ?? "").trim();
   const serviceType = String(formData.get("service_type") ?? "").trim();
-  const messLevel = String(formData.get("mess_level") ?? "").trim();
+  const homeCondition = String(formData.get("home_condition") ?? "").trim();
+  const clutterLevel = String(formData.get("clutter_level") ?? "").trim();
+  const kitchenCondition = String(formData.get("kitchen_condition") ?? "").trim();
+  const bathroomCondition = String(
+    formData.get("bathroom_condition") ?? ""
+  ).trim();
+  const petHairLevel = String(formData.get("pet_hair_level") ?? "").trim();
+  const floorType = String(formData.get("floor_type") ?? "").trim();
+  const lastCleanedRaw = String(formData.get("last_cleaned") ?? "").trim();
+
+  if (!isVisitType(visitType)) {
+    return { error: "Select a valid visit type." };
+  }
 
   if (!isHomeType(homeType)) {
     return { error: "Select a valid home type." };
@@ -86,8 +138,66 @@ function parseIntakeFromFormData(formData: FormData): IntakeInput | BookActionSt
     return { error: "Select a valid service type." };
   }
 
-  if (!isMessLevel(messLevel)) {
-    return { error: "Select a valid mess level." };
+  const clean_bedrooms = parseBooleanField(formData.get("clean_bedrooms"));
+  const clean_bathrooms = parseBooleanField(formData.get("clean_bathrooms"));
+  const clean_kitchen = parseBooleanField(formData.get("clean_kitchen"));
+  const clean_common_area = parseBooleanField(
+    formData.get("clean_common_area")
+  );
+  const clean_hallways = parseBooleanField(formData.get("clean_hallways"));
+
+  if (
+    !clean_bedrooms &&
+    !clean_bathrooms &&
+    !clean_kitchen &&
+    !clean_common_area &&
+    !clean_hallways
+  ) {
+    return { error: "Select at least one area to clean." };
+  }
+
+  if (clean_bedrooms && bedrooms < 1) {
+    return {
+      error: "Enter at least 1 bedroom when bedrooms are included in scope.",
+    };
+  }
+
+  if (clean_bathrooms && bathrooms < 1) {
+    return {
+      error: "Enter at least 1 bathroom when bathrooms are included in scope.",
+    };
+  }
+
+  if (!isHomeCondition(homeCondition)) {
+    return { error: "Select a valid home condition." };
+  }
+
+  if (!isClutterLevel(clutterLevel)) {
+    return { error: "Select a valid clutter level." };
+  }
+
+  if (!isAreaCondition(kitchenCondition)) {
+    return { error: "Select a valid kitchen condition." };
+  }
+
+  if (!isAreaCondition(bathroomCondition)) {
+    return { error: "Select a valid bathroom condition." };
+  }
+
+  if (!isPetHairLevel(petHairLevel)) {
+    return { error: "Select a valid pet hair level." };
+  }
+
+  if (!isFloorType(floorType)) {
+    return { error: "Select a valid floor type." };
+  }
+
+  let last_cleaned: LastCleaned | null = null;
+  if (lastCleanedRaw) {
+    if (!isLastCleaned(lastCleanedRaw)) {
+      return { error: "Select a valid last cleaned option." };
+    }
+    last_cleaned = lastCleanedRaw;
   }
 
   const extraTasksRaw = formData.getAll("extra_tasks");
@@ -103,14 +213,24 @@ function parseIntakeFromFormData(formData: FormData): IntakeInput | BookActionSt
   }
 
   return {
+    visit_type: visitType,
+    service_type: serviceType,
     home_type: homeType,
     bedrooms,
     bathrooms,
     square_feet_range: squareFeetRange,
-    service_type: serviceType,
-    mess_level: messLevel,
-    has_pets: parseBooleanField(formData.get("has_pets")),
-    supplies_needed: parseBooleanField(formData.get("supplies_needed")),
+    clean_bedrooms,
+    clean_bathrooms,
+    clean_kitchen,
+    clean_common_area,
+    clean_hallways,
+    home_condition: homeCondition,
+    clutter_level: clutterLevel,
+    kitchen_condition: kitchenCondition,
+    bathroom_condition: bathroomCondition,
+    pet_hair_level: petHairLevel,
+    last_cleaned,
+    floor_type: floorType,
     extra_tasks,
   };
 }
@@ -235,6 +355,9 @@ export async function createBookingAction(
       platform_fee,
       total_price,
       client_requested_hours: clientRequestedHours,
+      recommended_hours: quote.recommended_hours,
+      minimum_hours: quote.minimum_hours,
+      maximum_hours: quote.maximum_hours,
     },
     captured_at: new Date().toISOString(),
   };
@@ -249,14 +372,27 @@ export async function createBookingAction(
       notes: specialRequests || null,
       cleaner_id: cleanerId || null,
       status: "pending",
+      visit_type: intakeResult.visit_type,
       home_type: intakeResult.home_type,
       bedrooms: intakeResult.bedrooms,
       bathrooms: intakeResult.bathrooms,
       square_feet_range: intakeResult.square_feet_range,
       service_type: intakeResult.service_type,
-      mess_level: intakeResult.mess_level,
-      has_pets: intakeResult.has_pets,
-      supplies_needed: intakeResult.supplies_needed,
+      clean_bedrooms: intakeResult.clean_bedrooms,
+      clean_bathrooms: intakeResult.clean_bathrooms,
+      clean_kitchen: intakeResult.clean_kitchen,
+      clean_common_area: intakeResult.clean_common_area,
+      clean_hallways: intakeResult.clean_hallways,
+      home_condition: intakeResult.home_condition,
+      clutter_level: intakeResult.clutter_level,
+      kitchen_condition: intakeResult.kitchen_condition,
+      bathroom_condition: intakeResult.bathroom_condition,
+      pet_hair_level: intakeResult.pet_hair_level,
+      last_cleaned: intakeResult.last_cleaned,
+      floor_type: intakeResult.floor_type,
+      mess_level: homeConditionToMessLevel(intakeResult.home_condition),
+      has_pets: intakeResult.pet_hair_level !== "none",
+      supplies_needed: false,
       extra_tasks: intakeResult.extra_tasks,
       special_requests: specialRequests || null,
       recommended_hours: quote.recommended_hours,

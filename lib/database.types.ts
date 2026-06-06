@@ -42,23 +42,35 @@ export type Database = {
       bookings: {
         Row: {
           base_price: number | null
+          bathroom_condition: string | null
           bathrooms: number | null
           bedrooms: number | null
+          clean_bathrooms: boolean | null
+          clean_bedrooms: boolean | null
+          clean_common_area: boolean | null
+          clean_hallways: boolean | null
+          clean_kitchen: boolean | null
           cleaner_id: string | null
           client_id: string
           client_requested_hours: number | null
+          clutter_level: string | null
           created_at: string
           duration_hours: number | null
           extra_tasks: Json | null
+          floor_type: string | null
           has_pets: boolean | null
+          home_condition: string | null
           home_type: string | null
           hourly_rate_snapshot: number | null
           id: string
           job_scope: Json | null
+          kitchen_condition: string | null
+          last_cleaned: string | null
           maximum_hours: number | null
           mess_level: string | null
           minimum_hours: number | null
           notes: string | null
+          pet_hair_level: string | null
           platform_fee: number | null
           platform_fee_cents: number | null
           recommended_hours: number | null
@@ -73,60 +85,39 @@ export type Database = {
           supplies_needed: boolean | null
           total_price: number | null
           total_price_cents: number | null
+          visit_type: string | null
         }
         Insert: {
           base_price?: number | null
+          bathroom_condition?: string | null
           bathrooms?: number | null
           bedrooms?: number | null
-          cleaner_id?: string | null
-          client_id: string
-          client_requested_hours?: number | null
-          created_at?: string
-          duration_hours?: number | null
-          extra_tasks?: Json | null
-          has_pets?: boolean | null
-          home_type?: string | null
-          hourly_rate_snapshot?: number | null
-          id?: string
-          job_scope?: Json | null
-          maximum_hours?: number | null
-          mess_level?: string | null
-          minimum_hours?: number | null
-          notes?: string | null
-          platform_fee?: number | null
-          platform_fee_cents?: number | null
-          recommended_hours?: number | null
-          scheduled_at?: string | null
-          scope_snapshot?: Json | null
-          service_address?: string | null
-          service_price_cents?: number | null
-          service_type?: string | null
-          special_requests?: string | null
-          square_feet_range?: string | null
-          status?: string
-          supplies_needed?: boolean | null
-          total_price?: number | null
-          total_price_cents?: number | null
-        }
-        Update: {
-          base_price?: number | null
-          bathrooms?: number | null
-          bedrooms?: number | null
+          clean_bathrooms?: boolean | null
+          clean_bedrooms?: boolean | null
+          clean_common_area?: boolean | null
+          clean_hallways?: boolean | null
+          clean_kitchen?: boolean | null
           cleaner_id?: string | null
           client_id?: string
           client_requested_hours?: number | null
+          clutter_level?: string | null
           created_at?: string
           duration_hours?: number | null
           extra_tasks?: Json | null
+          floor_type?: string | null
           has_pets?: boolean | null
+          home_condition?: string | null
           home_type?: string | null
           hourly_rate_snapshot?: number | null
           id?: string
           job_scope?: Json | null
+          kitchen_condition?: string | null
+          last_cleaned?: string | null
           maximum_hours?: number | null
           mess_level?: string | null
           minimum_hours?: number | null
           notes?: string | null
+          pet_hair_level?: string | null
           platform_fee?: number | null
           platform_fee_cents?: number | null
           recommended_hours?: number | null
@@ -141,6 +132,54 @@ export type Database = {
           supplies_needed?: boolean | null
           total_price?: number | null
           total_price_cents?: number | null
+          visit_type?: string | null
+        }
+        Update: {
+          base_price?: number | null
+          bathroom_condition?: string | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          clean_bathrooms?: boolean | null
+          clean_bedrooms?: boolean | null
+          clean_common_area?: boolean | null
+          clean_hallways?: boolean | null
+          clean_kitchen?: boolean | null
+          cleaner_id?: string | null
+          client_id?: string
+          client_requested_hours?: number | null
+          clutter_level?: string | null
+          created_at?: string
+          duration_hours?: number | null
+          extra_tasks?: Json | null
+          floor_type?: string | null
+          has_pets?: boolean | null
+          home_condition?: string | null
+          home_type?: string | null
+          hourly_rate_snapshot?: number | null
+          id?: string
+          job_scope?: Json | null
+          kitchen_condition?: string | null
+          last_cleaned?: string | null
+          maximum_hours?: number | null
+          mess_level?: string | null
+          minimum_hours?: number | null
+          notes?: string | null
+          pet_hair_level?: string | null
+          platform_fee?: number | null
+          platform_fee_cents?: number | null
+          recommended_hours?: number | null
+          scheduled_at?: string | null
+          scope_snapshot?: Json | null
+          service_address?: string | null
+          service_price_cents?: number | null
+          service_type?: string | null
+          special_requests?: string | null
+          square_feet_range?: string | null
+          status?: string
+          supplies_needed?: boolean | null
+          total_price?: number | null
+          total_price_cents?: number | null
+          visit_type?: string | null
         }
         Relationships: [
           {
