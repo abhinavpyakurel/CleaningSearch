@@ -5,6 +5,7 @@ import {
   declineRequestAction,
 } from "@/app/cleaner/requests/actions";
 import { CounterOfferForm } from "@/app/cleaner/requests/counter-offer-form";
+import { BookingPhotoGallery } from "@/app/cleaner/requests/booking-photo-gallery";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +25,10 @@ import {
   parseScopeSnapshot,
 } from "@/lib/counter-offer";
 import { getServiceTypeLabel } from "@/lib/intake-estimate";
+import {
+  createSignedBookingPhotoUrls,
+  type BookingPhotoSignedUrl,
+} from "@/lib/booking-photos";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/database.types";
 
@@ -40,6 +45,7 @@ type PendingRequest = {
   total_price_cents: number | null;
   hourly_rate_snapshot: number | null;
   client: { full_name: string | null } | null;
+  photos: BookingPhotoSignedUrl[];
 };
 
 function formatScheduledAt(iso: string | null): string {
@@ -161,6 +167,13 @@ function RequestCard({ request }: { request: PendingRequest }) {
           </p>
         )}
 
+        <div>
+          <p className="text-muted-foreground">Photos</p>
+          <div className="mt-2">
+            <BookingPhotoGallery photos={request.photos} />
+          </div>
+        </div>
+
         {request.notes ? (
           <p>
             <span className="text-muted-foreground">Notes: </span>
@@ -238,7 +251,8 @@ export default async function CleanerRequestsPage() {
       client_requested_hours,
       total_price_cents,
       hourly_rate_snapshot,
-      client:profiles!bookings_client_id_fkey ( full_name )
+      client:profiles!bookings_client_id_fkey ( full_name ),
+      booking_photos ( id, storage_path )
     `
     )
     .eq("cleaner_id", user.id)
@@ -249,7 +263,23 @@ export default async function CleanerRequestsPage() {
     throw new Error(error.message);
   }
 
-  const requests = (bookings ?? []) as PendingRequest[];
+  const requests: PendingRequest[] = await Promise.all(
+    (bookings ?? []).map(async (booking) => {
+      const {
+        booking_photos: photoRowsRaw,
+        ...request
+      } = booking as typeof booking & {
+        booking_photos: { id: string; storage_path: string }[] | null;
+      };
+      const photoRows = photoRowsRaw ?? [];
+      const photos = await createSignedBookingPhotoUrls(supabase, photoRows);
+
+      return {
+        ...(request as Omit<PendingRequest, "photos">),
+        photos,
+      };
+    })
+  );
 
   return (
     <>

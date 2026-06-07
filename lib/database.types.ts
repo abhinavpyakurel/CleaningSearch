@@ -219,6 +219,41 @@ export type Database = {
           },
         ]
       }
+      booking_photos: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          storage_bucket: string
+          storage_path: string
+          uploaded_by: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          storage_bucket?: string
+          storage_path: string
+          uploaded_by: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          storage_bucket?: string
+          storage_path?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_photos_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cleaner_profiles: {
         Row: {
           avg_rating: number

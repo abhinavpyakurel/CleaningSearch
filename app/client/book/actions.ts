@@ -43,6 +43,7 @@ import type { Json } from "@/lib/database.types";
 
 export type BookActionState = {
   error?: string;
+  bookingId?: string;
 };
 
 function parseBooleanField(value: FormDataEntryValue | null): boolean {
@@ -520,5 +521,5 @@ export async function createBookingAction(
     }
   }
 
-  redirect(`/client/book/confirm?booking_id=${data.id}`);
+  return { bookingId: data.id };
 }

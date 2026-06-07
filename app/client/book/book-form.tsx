@@ -1,8 +1,8 @@
 "use client";
 
-import { Minus, Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { useFormState, useFormStatus } from "react-dom";
+import { Minus, Plus, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import {
   createBookingAction,
@@ -58,6 +58,13 @@ import {
   type UiSquareFeetRange,
   type VisitType,
 } from "@/lib/intake-estimate";
+import {
+  BOOKING_PHOTO_ACCEPT,
+  MAX_BOOKING_PHOTOS,
+  uploadBookingPhotosForBooking,
+  validateBookingPhotoFile,
+} from "@/lib/booking-photos";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 const initialState: BookActionState = {};
@@ -113,8 +120,13 @@ function formatBathroomType(type: BathroomType): string {
   return BATHROOM_TYPE_OPTIONS.find((o) => o.value === type)?.label ?? type;
 }
 
-function SubmitButton({ disabled }: { disabled: boolean }) {
-  const { pending } = useFormStatus();
+function SubmitButton({
+  disabled,
+  pending,
+}: {
+  disabled: boolean;
+  pending: boolean;
+}) {
   return (
     <Button type="submit" className="w-full sm:w-auto" disabled={pending || disabled}>
       {pending ? "Submitting…" : "Send request"}
@@ -302,6 +314,12 @@ function AreaDetailPanel({
   );
 }
 
+type SelectedPhoto = {
+  id: string;
+  file: File;
+  previewUrl: string;
+};
+
 type BookFormProps = {
   cleanerId: string;
   cleanerName: string;
@@ -313,7 +331,13 @@ export function BookForm({
   cleanerName,
   hourlyRate,
 }: BookFormProps) {
-  const [state, formAction] = useFormState(createBookingAction, initialState);
+  const router = useRouter();
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
+  const [selectedPhotos, setSelectedPhotos] = useState<SelectedPhoto[]>([]);
+  const [photoPickerError, setPhotoPickerError] = useState<string | null>(null);
   const [step, setStep] = useState(1);
   const [stepError, setStepError] = useState<string | null>(null);
 
@@ -481,6 +505,127 @@ export function BookForm({
       setRequestedHours(null);
     }
   }, [quote]);
+
+  useEffect(() => {
+    return () => {
+      selectedPhotos.forEach((photo) => URL.revokeObjectURL(photo.previewUrl));
+    };
+  }, [selectedPhotos]);
+
+  function handlePhotoSelection(event: React.ChangeEvent<HTMLInputElement>) {
+    setPhotoPickerError(null);
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+
+    if (files.length === 0) {
+      return;
+    }
+
+    const availableSlots = MAX_BOOKING_PHOTOS - selectedPhotos.length;
+    if (availableSlots <= 0) {
+      setPhotoPickerError(`You can add up to ${MAX_BOOKING_PHOTOS} photos.`);
+      return;
+    }
+
+    const nextPhotos: SelectedPhoto[] = [];
+    for (const file of files.slice(0, availableSlots)) {
+      const validationError = validateBookingPhotoFile(file);
+      if (validationError) {
+        setPhotoPickerError(validationError);
+        continue;
+      }
+
+      nextPhotos.push({
+        id: crypto.randomUUID(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+      });
+    }
+
+    if (nextPhotos.length === 0) {
+      return;
+    }
+
+    if (files.length > availableSlots) {
+      setPhotoPickerError(`You can add up to ${MAX_BOOKING_PHOTOS} photos.`);
+    }
+
+    setSelectedPhotos((current) => [...current, ...nextPhotos]);
+  }
+
+  function removePhoto(photoId: string) {
+    setSelectedPhotos((current) => {
+      const photo = current.find((item) => item.id === photoId);
+      if (photo) {
+        URL.revokeObjectURL(photo.previewUrl);
+      }
+      return current.filter((item) => item.id !== photoId);
+    });
+    setPhotoPickerError(null);
+  }
+
+  async function handleFormSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (step !== 3 || !canSubmit || isSubmitting || createdBookingId) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    const formData = new FormData(event.currentTarget);
+    const result = await createBookingAction(initialState, formData);
+
+    if (result.error) {
+      setSubmitError(result.error);
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!result.bookingId) {
+      setSubmitError("Booking was created but no booking ID was returned.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (selectedPhotos.length === 0) {
+      router.push(`/client/book/confirm?booking_id=${result.bookingId}`);
+      return;
+    }
+
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setSubmitError(
+        "Your booking was created, but your session expired before photos could upload. Please sign in and check your bookings."
+      );
+      setCreatedBookingId(result.bookingId);
+      setIsSubmitting(false);
+      return;
+    }
+
+    const uploadResult = await uploadBookingPhotosForBooking(
+      supabase,
+      result.bookingId,
+      user.id,
+      selectedPhotos.map((photo) => photo.file)
+    );
+
+    if (uploadResult.error) {
+      setSubmitError(
+        `Your booking was created, but photo upload failed: ${uploadResult.error}`
+      );
+      setCreatedBookingId(result.bookingId);
+      setIsSubmitting(false);
+      return;
+    }
+
+    router.push(`/client/book/confirm?booking_id=${result.bookingId}`);
+  }
 
   const pricing = useMemo(() => {
     if (
@@ -687,13 +832,8 @@ export function BookForm({
       </CardHeader>
 
       <form
-        action={formAction}
         noValidate
-        onSubmit={(event) => {
-          if (step !== 3 || !canSubmit) {
-            event.preventDefault();
-          }
-        }}
+        onSubmit={handleFormSubmit}
       >
         <input type="hidden" name="cleaner_id" value={cleanerId} />
         <input type="hidden" name="bedrooms" value={bedroomsHidden} />
@@ -775,12 +915,23 @@ export function BookForm({
         ))}
 
         <CardContent className="flex flex-col gap-8">
-          {state.error ? (
+          {submitError ? (
             <p
               role="alert"
               className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
             >
-              {state.error}
+              {submitError}
+              {createdBookingId ? (
+                <>
+                  {" "}
+                  <a
+                    href={`/client/book/confirm?booking_id=${createdBookingId}`}
+                    className="font-medium underline underline-offset-2"
+                  >
+                    Continue without photos
+                  </a>
+                </>
+              ) : null}
             </p>
           ) : null}
 
@@ -1332,6 +1483,75 @@ export function BookForm({
                 adjustment before the booking is confirmed.
               </p>
 
+              <section className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-2">
+                  <Label htmlFor="booking_photos" className="text-base font-semibold bg-gray-200 rounded p-0.5 hover:bg-gray-100 transition-colors cursor-pointer">
+                    Add photos to help the cleaner understand the job 
+                  </Label>
+                  <span className="text-xs text-muted-foreground">
+                    (Highly recommended - This helps cleaner respond fast and
+                    accurate)
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Optional. Up to {MAX_BOOKING_PHOTOS} photos, 5MB each. JPEG,
+                  PNG, or WebP.
+                </p>
+                <div className="flex flex-col gap-3">
+                  {selectedPhotos.length > 0 ? (
+                    <ul className="flex flex-wrap gap-3">
+                      {selectedPhotos.map((photo) => (
+                        <li key={photo.id} className="relative">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={photo.previewUrl}
+                            alt="Selected booking photo preview"
+                            className="size-24 rounded-lg border border-border object-cover"
+                          />
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
+                            className="absolute -right-2 -top-2 size-7 rounded-full shadow-sm"
+                            aria-label="Remove photo"
+                            onClick={() => removePhoto(photo.id)}
+                          >
+                            <X className="size-3.5" />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {selectedPhotos.length < MAX_BOOKING_PHOTOS ? (
+                    <div>
+                      <input
+                        ref={photoInputRef}
+                        id="booking_photos"
+                        type="file"
+                        accept={BOOKING_PHOTO_ACCEPT}
+                        capture="environment"
+                        className="sr-only"
+                        onChange={handlePhotoSelection}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => photoInputRef.current?.click()}
+                      >
+                        {selectedPhotos.length === 0
+                          ? "Add photo"
+                          : "Add another photo"}
+                      </Button>
+                    </div>
+                  ) : null}
+                  {photoPickerError ? (
+                    <p role="alert" className="text-sm text-destructive">
+                      {photoPickerError}
+                    </p>
+                  ) : null}
+                </div>
+              </section>
+
               <section className="flex flex-col gap-4">
                 <SectionHeading title="When & where" />
                 <div className="flex flex-col gap-2">
@@ -1397,7 +1617,10 @@ export function BookForm({
               Continue
             </Button>
           ) : (
-            <SubmitButton disabled={!canSubmit} />
+            <SubmitButton
+              disabled={!canSubmit || Boolean(createdBookingId)}
+              pending={isSubmitting}
+            />
           )}
         </CardFooter>
       </form>
