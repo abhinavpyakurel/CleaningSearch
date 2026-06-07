@@ -166,13 +166,15 @@ export async function POST(request: Request) {
   const clean_kitchen = parseBoolean(body.clean_kitchen);
   const clean_common_area = parseBoolean(body.clean_common_area);
   const clean_hallways = parseBoolean(body.clean_hallways);
+  const clean_floors = parseBoolean(body.clean_floors);
 
   if (
     clean_bedrooms === null ||
     clean_bathrooms === null ||
     clean_kitchen === null ||
     clean_common_area === null ||
-    clean_hallways === null
+    clean_hallways === null ||
+    clean_floors === null
   ) {
     return NextResponse.json(
       { error: "Area selection fields must be booleans" },
@@ -185,7 +187,8 @@ export async function POST(request: Request) {
     !clean_bathrooms &&
     !clean_kitchen &&
     !clean_common_area &&
-    !clean_hallways
+    !clean_hallways &&
+    !clean_floors
   ) {
     return NextResponse.json(
       { error: "At least one area must be selected" },
@@ -260,6 +263,7 @@ export async function POST(request: Request) {
     clean_kitchen,
     clean_common_area,
     clean_hallways,
+    clean_floors,
     home_condition: body.home_condition,
     clutter_level: body.clutter_level,
     kitchen_condition: body.kitchen_condition,

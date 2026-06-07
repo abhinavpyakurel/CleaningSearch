@@ -3,10 +3,14 @@ import { redirect } from "next/navigation";
 import { Calendar, Clock, User } from "lucide-react";
 
 import { CancelBookingForm } from "@/app/client/bookings/cancel-booking-form";
+import { CounterResponseForm } from "@/app/client/bookings/counter-response-form";
 import { MarkCompleteForm } from "@/app/client/bookings/mark-complete-form";
 import { ReviewBookingForm } from "@/app/client/bookings/review-booking-form";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
+import { formatUsdFromCents } from "@/lib/booking-price";
+import { parseCounterAdjustments } from "@/lib/counter-offer";
+import type { Json } from "@/lib/database.types";
 
 type ClientBooking = {
   id: string;
@@ -18,15 +22,23 @@ type ClientBooking = {
   cleaner_id: string | null;
   cleaner_name: string | null;
   has_review: boolean;
+  client_requested_hours: number | null;
+  total_price_cents: number | null;
+  counter_adjustments: Json | null;
+  counter_hours: number | null;
+  counter_total_price_cents: number | null;
+  counter_reason: string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Looking for cleaner",
+  countered: "Counter offer received",
   confirmed: "Cleaner confirmed",
   in_progress: "In progress",
   completed: "Completed",
   disputed: "Disputed",
   cancelled: "Cancelled",
+  declined: "Declined",
 };
 
 function getStatusLabel(status: string): string {
@@ -40,6 +52,8 @@ function getStatusBadgeClasses(status: string): string {
   switch (status) {
     case "pending":
       return `${base} border-amber-200 bg-amber-50 text-amber-700`;
+    case "countered":
+      return `${base} border-blue-200 bg-blue-50 text-blue-700`;
     case "confirmed":
     case "in_progress":
     case "completed":
@@ -82,6 +96,14 @@ function formatDuration(hours: number | null): string {
   return `${hours} ${label}`;
 }
 
+function formatHoursValue(hours: number | null): string {
+  if (hours == null || !Number.isFinite(hours)) {
+    return "—";
+  }
+
+  return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
+}
+
 function BookingCard({ booking }: { booking: ClientBooking }) {
   const showCleaner =
     booking.cleaner_id != null && booking.cleaner_name != null;
@@ -91,6 +113,11 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
     booking.status === "completed" && !booking.has_review;
   const canCancel =
     booking.status === "pending" || booking.status === "confirmed";
+  const counterAdjustments = parseCounterAdjustments(booking.counter_adjustments);
+  const originalHours =
+    booking.client_requested_hours ?? booking.duration_hours;
+  const displayHours =
+    booking.status === "countered" ? originalHours : booking.duration_hours;
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md">
@@ -120,7 +147,7 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
         </div>
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <Clock className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
-          <span>{formatDuration(booking.duration_hours)}</span>
+          <span>{formatDuration(displayHours)}</span>
         </div>
       </div>
 
@@ -130,24 +157,71 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
         </p>
       ) : null}
 
-      
-      <div className="mt-4 flex items-center justify-between ">
-      {canMarkComplete ? <MarkCompleteForm bookingId={booking.id} /> : null}
+      {booking.status === "countered" ? (
+        <section className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+          <h2 className="text-sm font-semibold text-gray-900">
+            Cleaner counter offer
+          </h2>
+          <div className="mt-3 grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
+            <p>
+              <span className="text-gray-500">Your requested hours: </span>
+              {formatHoursValue(originalHours)}
+            </p>
+            <p>
+              <span className="text-gray-500">Your original price: </span>
+              {formatUsdFromCents(booking.total_price_cents)}
+            </p>
+            <p>
+              <span className="text-gray-500">Cleaner suggested hours: </span>
+              {formatHoursValue(booking.counter_hours)}
+            </p>
+            <p>
+              <span className="text-gray-500">New total price: </span>
+              {formatUsdFromCents(booking.counter_total_price_cents)}
+            </p>
+          </div>
 
-      {canCancel ? <CancelBookingForm bookingId={booking.id} /> : null}
+          {counterAdjustments.length > 0 ? (
+            <div className="mt-4">
+              <p className="text-sm font-medium text-gray-900">What changed</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-700">
+                {counterAdjustments.map((adjustment) => (
+                  <li key={`${adjustment.field}-${adjustment.description}`}>
+                    {adjustment.description}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
-      {canReview ? <ReviewBookingForm bookingId={booking.id} /> : null}
+          {booking.counter_reason ? (
+            <div className="mt-4">
+              <p className="text-sm font-medium text-gray-900">
+                Cleaner&apos;s reason
+              </p>
+              <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">
+                {booking.counter_reason}
+              </p>
+            </div>
+          ) : null}
 
-      {booking.status === "completed" && booking.has_review ? (
-        <p className="mt-4 text-sm text-gray-500">Review submitted — thank you!</p>
+          <CounterResponseForm bookingId={booking.id} />
+        </section>
       ) : null}
 
+      <div className="mt-4 flex items-center justify-between ">
+        {canMarkComplete ? <MarkCompleteForm bookingId={booking.id} /> : null}
+
+        {canCancel ? <CancelBookingForm bookingId={booking.id} /> : null}
+
+        {canReview ? <ReviewBookingForm bookingId={booking.id} /> : null}
+
+        {booking.status === "completed" && booking.has_review ? (
+          <p className="mt-4 text-sm text-gray-500">
+            Review submitted — thank you!
+          </p>
+        ) : null}
       </div>
-
-
-
-
-
     </div>
   );
 }
@@ -175,7 +249,7 @@ export default async function BookingsPage() {
   const { data: bookings, error } = await supabase
     .from("bookings")
     .select(
-      "id, service_address, scheduled_at, duration_hours, notes, status, cleaner_id"
+      "id, service_address, scheduled_at, duration_hours, notes, status, cleaner_id, client_requested_hours, total_price_cents, counter_adjustments, counter_hours, counter_total_price_cents, counter_reason"
     )
     .eq("client_id", user.id)
     .order("scheduled_at", { ascending: false });

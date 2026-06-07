@@ -9,7 +9,8 @@ import {
 import { sendNewBookingEmailToCleaner } from "@/lib/email/notifications";
 import {
   AREA_CONDITIONS,
-  CLUTTER_LEVELS,
+  AREA_SIZES,
+  BATHROOM_TYPES,
   estimateIntake,
   EXTRA_TASKS,
   FLOOR_TYPES,
@@ -17,24 +18,28 @@ import {
   HOME_CONDITIONS,
   HOME_TYPES,
   LAST_CLEANED_OPTIONS,
+  LIVING_AREA_SIZES,
   PET_HAIR_LEVELS,
   SERVICE_TYPES,
   SQUARE_FEET_RANGES,
   VISIT_TYPES,
   type AreaCondition,
-  type ClutterLevel,
+  type AreaSize,
+  type BathroomType,
   type ExtraTask,
   type FloorType,
   type HomeCondition,
   type HomeType,
   type IntakeInput,
   type LastCleaned,
+  type LivingAreaSize,
   type PetHairLevel,
   type ServiceType,
   type SquareFeetRange,
   type VisitType,
 } from "@/lib/intake-estimate";
 import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/database.types";
 
 export type BookActionState = {
   error?: string;
@@ -64,12 +69,20 @@ function isHomeCondition(value: string): value is HomeCondition {
   return (HOME_CONDITIONS as readonly string[]).includes(value);
 }
 
-function isClutterLevel(value: string): value is ClutterLevel {
-  return (CLUTTER_LEVELS as readonly string[]).includes(value);
-}
-
 function isAreaCondition(value: string): value is AreaCondition {
   return (AREA_CONDITIONS as readonly string[]).includes(value);
+}
+
+function isAreaSize(value: string): value is AreaSize {
+  return (AREA_SIZES as readonly string[]).includes(value);
+}
+
+function isLivingAreaSize(value: string): value is LivingAreaSize {
+  return (LIVING_AREA_SIZES as readonly string[]).includes(value);
+}
+
+function isBathroomType(value: string): value is BathroomType {
+  return (BATHROOM_TYPES as readonly string[]).includes(value);
 }
 
 function isPetHairLevel(value: string): value is PetHairLevel {
@@ -98,7 +111,19 @@ function parseIntakeFromFormData(
   const squareFeetRange = String(formData.get("square_feet_range") ?? "").trim();
   const serviceType = String(formData.get("service_type") ?? "").trim();
   const homeCondition = String(formData.get("home_condition") ?? "").trim();
-  const clutterLevel = String(formData.get("clutter_level") ?? "").trim();
+  const commonAreaCondition = String(
+    formData.get("common_area_condition") ?? "normal"
+  ).trim();
+  const bedroomSize = String(formData.get("bedroom_size") ?? "normal").trim();
+  const bedroomCondition = String(
+    formData.get("bedroom_condition") ?? "normal"
+  ).trim();
+  const bathroomType = String(formData.get("bathroom_type") ?? "full").trim();
+  const kitchenSize = String(formData.get("kitchen_size") ?? "normal").trim();
+  const livingAreaSize = String(
+    formData.get("living_area_size") ?? "normal"
+  ).trim();
+  const hallwaySize = String(formData.get("hallway_size") ?? "normal").trim();
   const kitchenCondition = String(formData.get("kitchen_condition") ?? "").trim();
   const bathroomCondition = String(
     formData.get("bathroom_condition") ?? ""
@@ -145,13 +170,15 @@ function parseIntakeFromFormData(
     formData.get("clean_common_area")
   );
   const clean_hallways = parseBooleanField(formData.get("clean_hallways"));
+  const clean_floors = parseBooleanField(formData.get("clean_floors"));
 
   if (
     !clean_bedrooms &&
     !clean_bathrooms &&
     !clean_kitchen &&
     !clean_common_area &&
-    !clean_hallways
+    !clean_hallways &&
+    !clean_floors
   ) {
     return { error: "Select at least one area to clean." };
   }
@@ -172,8 +199,32 @@ function parseIntakeFromFormData(
     return { error: "Select a valid home condition." };
   }
 
-  if (!isClutterLevel(clutterLevel)) {
-    return { error: "Select a valid clutter level." };
+  if (!isAreaCondition(commonAreaCondition)) {
+    return { error: "Select a valid living area condition." };
+  }
+
+  if (!isAreaSize(bedroomSize)) {
+    return { error: "Select a valid bedroom size." };
+  }
+
+  if (!isAreaCondition(bedroomCondition)) {
+    return { error: "Select a valid bedroom condition." };
+  }
+
+  if (!isBathroomType(bathroomType)) {
+    return { error: "Select a valid bathroom type." };
+  }
+
+  if (!isAreaSize(kitchenSize)) {
+    return { error: "Select a valid kitchen size." };
+  }
+
+  if (!isLivingAreaSize(livingAreaSize)) {
+    return { error: "Select a valid living area size." };
+  }
+
+  if (!isAreaSize(hallwaySize)) {
+    return { error: "Select a valid hallway size." };
   }
 
   if (!isAreaCondition(kitchenCondition)) {
@@ -224,10 +275,17 @@ function parseIntakeFromFormData(
     clean_kitchen,
     clean_common_area,
     clean_hallways,
+    clean_floors,
     home_condition: homeCondition,
-    clutter_level: clutterLevel,
+    bedroom_size: bedroomSize,
+    bedroom_condition: bedroomCondition,
+    bathroom_type: bathroomType,
+    kitchen_size: kitchenSize,
+    living_area_size: livingAreaSize,
+    hallway_size: hallwaySize,
     kitchen_condition: kitchenCondition,
     bathroom_condition: bathroomCondition,
+    common_area_condition: commonAreaCondition,
     pet_hair_level: petHairLevel,
     last_cleaned,
     floor_type: floorType,
@@ -343,8 +401,24 @@ export async function createBookingAction(
     }
   }
 
+  const suppliesNeeded = parseBooleanField(formData.get("supplies_needed"));
+
+  let uiDetails: Json | null = null;
+  const scopeUiExtrasRaw = String(formData.get("scope_ui_extras") ?? "").trim();
+  if (scopeUiExtrasRaw) {
+    try {
+      const parsed = JSON.parse(scopeUiExtrasRaw) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        uiDetails = parsed as Json;
+      }
+    } catch {
+      return { error: "Invalid scope details. Please refresh and try again." };
+    }
+  }
+
   const scope_snapshot = {
     input: intakeResult,
+    ui_details: uiDetails,
     quote,
     pricing: {
       hourly_rate_snapshot,
@@ -383,8 +457,9 @@ export async function createBookingAction(
       clean_kitchen: intakeResult.clean_kitchen,
       clean_common_area: intakeResult.clean_common_area,
       clean_hallways: intakeResult.clean_hallways,
+      clean_floors: intakeResult.clean_floors,
       home_condition: intakeResult.home_condition,
-      clutter_level: intakeResult.clutter_level,
+      clutter_level: null,
       kitchen_condition: intakeResult.kitchen_condition,
       bathroom_condition: intakeResult.bathroom_condition,
       pet_hair_level: intakeResult.pet_hair_level,
@@ -392,7 +467,7 @@ export async function createBookingAction(
       floor_type: intakeResult.floor_type,
       mess_level: homeConditionToMessLevel(intakeResult.home_condition),
       has_pets: intakeResult.pet_hair_level !== "none",
-      supplies_needed: false,
+      supplies_needed: suppliesNeeded,
       extra_tasks: intakeResult.extra_tasks,
       special_requests: specialRequests || null,
       recommended_hours: quote.recommended_hours,

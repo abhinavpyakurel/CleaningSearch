@@ -49,11 +49,18 @@ export type Database = {
           clean_bedrooms: boolean | null
           clean_common_area: boolean | null
           clean_hallways: boolean | null
+          clean_floors: boolean | null
           clean_kitchen: boolean | null
           cleaner_id: string | null
           client_id: string
           client_requested_hours: number | null
           clutter_level: string | null
+          counter_adjustments: Json | null
+          counter_hours: number | null
+          counter_reason: string | null
+          counter_scope_snapshot: Json | null
+          counter_total_price_cents: number | null
+          countered_at: string | null
           created_at: string
           duration_hours: number | null
           extra_tasks: Json | null
@@ -96,11 +103,18 @@ export type Database = {
           clean_bedrooms?: boolean | null
           clean_common_area?: boolean | null
           clean_hallways?: boolean | null
+          clean_floors?: boolean | null
           clean_kitchen?: boolean | null
           cleaner_id?: string | null
           client_id?: string
           client_requested_hours?: number | null
           clutter_level?: string | null
+          counter_adjustments?: Json | null
+          counter_hours?: number | null
+          counter_reason?: string | null
+          counter_scope_snapshot?: Json | null
+          counter_total_price_cents?: number | null
+          countered_at?: string | null
           created_at?: string
           duration_hours?: number | null
           extra_tasks?: Json | null
@@ -143,11 +157,18 @@ export type Database = {
           clean_bedrooms?: boolean | null
           clean_common_area?: boolean | null
           clean_hallways?: boolean | null
+          clean_floors?: boolean | null
           clean_kitchen?: boolean | null
           cleaner_id?: string | null
           client_id?: string
           client_requested_hours?: number | null
           clutter_level?: string | null
+          counter_adjustments?: Json | null
+          counter_hours?: number | null
+          counter_reason?: string | null
+          counter_scope_snapshot?: Json | null
+          counter_total_price_cents?: number | null
+          countered_at?: string | null
           created_at?: string
           duration_hours?: number | null
           extra_tasks?: Json | null

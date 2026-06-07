@@ -2,6 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
+import {
+  getBookingUpdateFromCounterScope,
+  parseScopeSnapshot,
+} from "@/lib/counter-offer";
 import { createClient } from "@/lib/supabase/server";
 
 async function getAuthenticatedClient() {
@@ -165,5 +169,119 @@ export async function cancelBookingAction(
   }
 
   revalidatePath("/client/bookings");
+  return { error: null };
+}
+
+export type CounterResponseActionState = { error: string | null };
+
+export async function acceptCounterOfferAction(
+  _prevState: CounterResponseActionState,
+  formData: FormData
+): Promise<CounterResponseActionState> {
+  const bookingId = String(formData.get("booking_id") ?? "").trim();
+  if (!bookingId) {
+    return { error: "Invalid booking." };
+  }
+
+  const auth = await getAuthenticatedClient();
+  if (auth.error || !auth.user) {
+    return { error: auth.error ?? "Not authenticated." };
+  }
+
+  const { supabase, user } = auth;
+
+  const { data: booking, error: fetchError } = await supabase
+    .from("bookings")
+    .select("id, client_id, status, counter_scope_snapshot, counter_hours, counter_total_price_cents")
+    .eq("id", bookingId)
+    .maybeSingle();
+
+  if (fetchError) {
+    return { error: fetchError.message };
+  }
+
+  if (!booking) {
+    return { error: "Booking not found." };
+  }
+
+  if (booking.client_id !== user.id) {
+    return { error: "You cannot respond to this counter offer." };
+  }
+
+  if (booking.status !== "countered") {
+    return { error: "This booking does not have an active counter offer." };
+  }
+
+  const counterScope = parseScopeSnapshot(booking.counter_scope_snapshot);
+  if (!counterScope) {
+    return { error: "Counter offer details are missing." };
+  }
+
+  if (
+    booking.counter_hours == null ||
+    booking.counter_total_price_cents == null
+  ) {
+    return { error: "Counter offer pricing is incomplete." };
+  }
+
+  const updatePayload = getBookingUpdateFromCounterScope(counterScope);
+
+  const { data: updated, error: updateError } = await supabase
+    .from("bookings")
+    .update(updatePayload as never)
+    .eq("id", bookingId)
+    .eq("client_id", user.id)
+    .eq("status", "countered")
+    .select("id")
+    .maybeSingle();
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  if (!updated) {
+    return { error: "Could not accept the counter offer." };
+  }
+
+  revalidatePath("/client/bookings");
+  revalidatePath("/cleaner/requests");
+  return { error: null };
+}
+
+export async function declineCounterOfferAction(
+  _prevState: CounterResponseActionState,
+  formData: FormData
+): Promise<CounterResponseActionState> {
+  const bookingId = String(formData.get("booking_id") ?? "").trim();
+  if (!bookingId) {
+    return { error: "Invalid booking." };
+  }
+
+  const auth = await getAuthenticatedClient();
+  if (auth.error || !auth.user) {
+    return { error: auth.error ?? "Not authenticated." };
+  }
+
+  const { supabase, user } = auth;
+
+  const { data: updated, error: updateError } = await supabase
+    .from("bookings")
+    .update({ status: "declined" } as never)
+    .eq("id", bookingId)
+    .eq("client_id", user.id)
+    .eq("status", "countered")
+    .select("id")
+    .maybeSingle();
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  if (!updated) {
+    return { error: "Could not decline the counter offer." };
+  }
+
+  revalidatePath("/client/bookings");
+  revalidatePath("/cleaner/requests");
   return { error: null };
 }

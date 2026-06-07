@@ -28,32 +28,25 @@ import {
 } from "@/lib/booking-price";
 import {
   AREA_CONDITIONS,
-  CLUTTER_LEVELS,
+  areaConditionToHomeCondition,
   estimateIntake,
   EXTRA_TASKS,
-  FLOOR_TYPES,
   getAreaConditionLabel,
-  getClutterLevelLabel,
   getExtraTaskLabel,
-  getFloorTypeLabel,
-  getHomeConditionLabel,
   getHomeTypeLabel,
-  getLastCleanedLabel,
   getPetHairLevelLabel,
   getServiceTypeLabel,
-  getSquareFeetRangeLabel,
+  getUiLastCleanedLabel,
+  getUiSquareFeetLabel,
   getVisitTypeLabel,
-  HOME_CONDITIONS,
-  HOME_TYPES,
-  LAST_CLEANED_OPTIONS,
   PET_HAIR_LEVELS,
   SERVICE_TYPES,
-  SQUARE_FEET_RANGES,
+  uiLastCleanedToValue,
+  uiSquareFeetToRange,
+  UI_LAST_CLEANED_OPTIONS,
   VISIT_TYPES,
   type AreaCondition,
-  type ClutterLevel,
   type ExtraTask,
-  type FloorType,
   type HomeCondition,
   type HomeType,
   type IntakeInput,
@@ -61,6 +54,8 @@ import {
   type PetHairLevel,
   type ServiceType,
   type SquareFeetRange,
+  type UiLastCleaned,
+  type UiSquareFeetRange,
   type VisitType,
 } from "@/lib/intake-estimate";
 import { cn } from "@/lib/utils";
@@ -73,8 +68,49 @@ const STEPS = [
   { id: 3, label: "Review" },
 ] as const;
 
+const BOOKING_HOME_TYPES: HomeType[] = ["apartment", "house", "townhouse"];
+
+type AreaSize = "small" | "normal" | "large";
+type LivingAreaSize = AreaSize | "open_plan";
+type BathroomType = "half" | "full" | "master";
+
+const AREA_SIZE_OPTIONS: { value: AreaSize; label: string }[] = [
+  { value: "small", label: "Small" },
+  { value: "normal", label: "Normal" },
+  { value: "large", label: "Large" },
+];
+
+const LIVING_SIZE_OPTIONS: { value: LivingAreaSize; label: string }[] = [
+  { value: "small", label: "Small" },
+  { value: "normal", label: "Normal" },
+  { value: "large", label: "Large" },
+  { value: "open_plan", label: "Open plan" },
+];
+
+const BATHROOM_TYPE_OPTIONS: { value: BathroomType; label: string }[] = [
+  { value: "half", label: "Half bath" },
+  { value: "full", label: "Full bath" },
+  { value: "master", label: "Master bath" },
+];
+
+const AREA_OPTIONS = [
+  { key: "bedrooms" as const, label: "Bedrooms" },
+  { key: "bathrooms" as const, label: "Bathrooms" },
+  { key: "kitchen" as const, label: "Kitchen" },
+  { key: "living" as const, label: "Living areas" },
+  { key: "hallways" as const, label: "Hallways" },
+];
+
 function formatHours(hours: number): string {
   return Number.isInteger(hours) ? String(hours) : hours.toFixed(1);
+}
+
+function formatAreaSize(size: AreaSize | LivingAreaSize): string {
+  return LIVING_SIZE_OPTIONS.find((o) => o.value === size)?.label ?? size;
+}
+
+function formatBathroomType(type: BathroomType): string {
+  return BATHROOM_TYPE_OPTIONS.find((o) => o.value === type)?.label ?? type;
 }
 
 function SubmitButton({ disabled }: { disabled: boolean }) {
@@ -88,71 +124,180 @@ function SubmitButton({ disabled }: { disabled: boolean }) {
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
   return (
-    <ol className="flex items-center gap-2">
-      {STEPS.map((step, index) => (
-        <li key={step.id} className="flex flex-1 items-center gap-2">
-          <div
-            className={cn(
-              "flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-medium",
-              currentStep >= step.id
-                ? "bg-[#00695C] text-white"
-                : "bg-muted text-muted-foreground"
-            )}
-          >
-            {step.id}
-          </div>
-          <span
-            className={cn(
-              "hidden text-sm sm:inline",
-              currentStep >= step.id
-                ? "font-medium text-foreground"
-                : "text-muted-foreground"
-            )}
-          >
-            {step.label}
-          </span>
-          {index < STEPS.length - 1 ? (
-            <div
+    <nav aria-label="Booking progress" className="text-sm">
+      <ol className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
+        {STEPS.map((step, index) => (
+          <li key={step.id} className="flex items-center gap-1.5">
+            <span
               className={cn(
-                "hidden h-px flex-1 sm:block",
-                currentStep > step.id ? "bg-[#00695C]" : "bg-border"
+                "font-medium",
+                currentStep === step.id
+                  ? "text-[#00695C]"
+                  : currentStep > step.id
+                    ? "text-foreground"
+                    : "text-muted-foreground"
               )}
-            />
-          ) : null}
-        </li>
-      ))}
-    </ol>
+            >
+              {step.id} {step.label}
+            </span>
+            {index < STEPS.length - 1 ? (
+              <span aria-hidden className="text-muted-foreground/60">
+                →
+              </span>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    </nav>
   );
 }
 
-function SelectField({
-  id,
+function SectionHeading({
+  title,
+  description,
+}: {
+  title: string;
+  description?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      {description ? (
+        <p className="text-sm text-muted-foreground">{description}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function PillGroup<T extends string>({
   label,
   value,
-  onChange,
   options,
+  onChange,
+  columns = 2,
 }: {
-  id: string;
   label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (value: T) => void;
+  columns?: 2 | 3 | 4 | 5;
+}) {
+  const gridClass =
+    columns === 5
+      ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
+      : columns === 4
+        ? "grid-cols-2 sm:grid-cols-4"
+        : columns === 3
+          ? "grid-cols-1 sm:grid-cols-3"
+          : "grid-cols-1 sm:grid-cols-2";
+
+  return (
+    <fieldset className="flex flex-col gap-2.5">
+      <legend className="text-sm font-medium text-foreground">{label}</legend>
+      <div className={cn("grid gap-2", gridClass)}>
+        {options.map((option) => {
+          const selected = value === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onChange(option.value)}
+              className={cn(
+                "rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors",
+                selected
+                  ? "border-[#00695C] bg-[#00695C]/10 text-[#00695C] ring-1 ring-[#00695C]/30"
+                  : "border-border bg-background text-foreground hover:border-[#00695C]/40 hover:bg-muted/50"
+              )}
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+function ToggleCard({
+  label,
+  selected,
+  onToggle,
+}: {
+  label: string;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onToggle}
+      className={cn(
+        "rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors",
+        selected
+          ? "border-[#00695C] bg-[#00695C]/10 text-[#00695C] ring-1 ring-[#00695C]/30"
+          : "border-border bg-background text-foreground hover:border-[#00695C]/40 hover:bg-muted/50"
+      )}
+    >
+      {label}
+    </button>
+  );
+}
+
+function CountStepper({
+  label,
+  value,
+  min,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  onChange: (value: number) => void;
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>{label}</Label>
-      <select
-        id={id}
-        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <span className="text-sm font-medium text-foreground">{label}</span>
+      <div className="flex items-center gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={`Decrease ${label.toLowerCase()}`}
+          disabled={value <= min}
+          onClick={() => onChange(Math.max(min, value - 1))}
+        >
+          <Minus className="size-4" />
+        </Button>
+        <span className="min-w-[2.5rem] text-center text-lg font-semibold">
+          {value}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          aria-label={`Increase ${label.toLowerCase()}`}
+          onClick={() => onChange(value + 1)}
+        >
+          <Plus className="size-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function AreaDetailPanel({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-border/80 bg-muted/30 p-4">
+      <p className="mb-3 text-sm font-semibold text-foreground">{title}</p>
+      <div className="flex flex-col gap-4">{children}</div>
     </div>
   );
 }
@@ -175,26 +320,36 @@ export function BookForm({
   const [visitType, setVisitType] = useState<VisitType>("first_clean");
   const [serviceType, setServiceType] = useState<ServiceType>("standard");
   const [homeType, setHomeType] = useState<HomeType>("house");
-  const [bedrooms, setBedrooms] = useState("2");
-  const [bathrooms, setBathrooms] = useState("1");
-  const [squareFeetRange, setSquareFeetRange] =
-    useState<SquareFeetRange>("800_1500");
-  const [cleanBedrooms, setCleanBedrooms] = useState(true);
-  const [cleanBathrooms, setCleanBathrooms] = useState(true);
+  const uiSquareFeet: UiSquareFeetRange = "500_1k";
+  const [petHairLevel, setPetHairLevel] = useState<PetHairLevel>("none");
+  const [uiLastCleaned, setUiLastCleaned] =
+    useState<UiLastCleaned>("this_month");
+
+  const [cleanBedrooms, setCleanBedrooms] = useState(false);
+  const [cleanBathrooms, setCleanBathrooms] = useState(false);
   const [cleanKitchen, setCleanKitchen] = useState(false);
   const [cleanCommonArea, setCleanCommonArea] = useState(false);
   const [cleanHallways, setCleanHallways] = useState(false);
-  const [homeCondition, setHomeCondition] =
-    useState<HomeCondition>("some_buildup");
-  const [clutterLevel, setClutterLevel] = useState<ClutterLevel>("medium");
-  const [kitchenCondition, setKitchenCondition] =
+
+  const [bedroomCount, setBedroomCount] = useState(2);
+  const [bathroomCount, setBathroomCount] = useState(1);
+  const [bedroomSize, setBedroomSize] = useState<AreaSize>("normal");
+  const [bedroomCondition, setBedroomCondition] =
     useState<AreaCondition>("normal");
+  const [bathroomType, setBathroomType] = useState<BathroomType>("full");
   const [bathroomCondition, setBathroomCondition] =
     useState<AreaCondition>("normal");
-  const [petHairLevel, setPetHairLevel] = useState<PetHairLevel>("none");
-  const [lastCleaned, setLastCleaned] = useState<LastCleaned | "">("");
-  const [floorType, setFloorType] = useState<FloorType>("mixed");
+  const [kitchenSize, setKitchenSize] = useState<AreaSize>("normal");
+  const [kitchenCondition, setKitchenCondition] =
+    useState<AreaCondition>("normal");
+  const [livingAreaSize, setLivingAreaSize] =
+    useState<LivingAreaSize>("normal");
+  const [livingAreaCondition, setLivingAreaCondition] =
+    useState<AreaCondition>("normal");
+  const [hallwaySize, setHallwaySize] = useState<AreaSize>("normal");
+
   const [extraTasks, setExtraTasks] = useState<ExtraTask[]>([]);
+  const [suppliesNeeded, setSuppliesNeeded] = useState(false);
   const [specialRequests, setSpecialRequests] = useState("");
   const [requestedHours, setRequestedHours] = useState<number | null>(null);
   const [rangeAlert, setRangeAlert] = useState<string | null>(null);
@@ -202,16 +357,56 @@ export function BookForm({
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
 
+  const squareFeetRange: SquareFeetRange = uiSquareFeetToRange(uiSquareFeet);
+  const lastCleaned: LastCleaned = uiLastCleanedToValue(uiLastCleaned);
+
+  const homeCondition: HomeCondition = useMemo(() => {
+    if (cleanBedrooms) {
+      return areaConditionToHomeCondition(bedroomCondition);
+    }
+    if (cleanCommonArea) {
+      return areaConditionToHomeCondition(livingAreaCondition);
+    }
+    return "some_buildup";
+  }, [cleanBedrooms, bedroomCondition, cleanCommonArea, livingAreaCondition]);
+
+  const scopeUiExtras = useMemo(
+    () => ({
+      bedroom_size: cleanBedrooms ? bedroomSize : null,
+      bedroom_condition: cleanBedrooms ? bedroomCondition : null,
+      bathroom_type: cleanBathrooms ? bathroomType : null,
+      bathroom_condition: cleanBathrooms ? bathroomCondition : null,
+      kitchen_size: cleanKitchen ? kitchenSize : null,
+      kitchen_condition: cleanKitchen ? kitchenCondition : null,
+      living_area_size: cleanCommonArea ? livingAreaSize : null,
+      living_area_condition: cleanCommonArea ? livingAreaCondition : null,
+      hallway_size: cleanHallways ? hallwaySize : null,
+    }),
+    [
+      cleanBedrooms,
+      bedroomSize,
+      bedroomCondition,
+      cleanBathrooms,
+      bathroomType,
+      bathroomCondition,
+      cleanKitchen,
+      kitchenSize,
+      kitchenCondition,
+      cleanCommonArea,
+      livingAreaSize,
+      livingAreaCondition,
+      cleanHallways,
+      hallwaySize,
+    ]
+  );
+
   const intakeInput = useMemo((): IntakeInput | null => {
-    const bedroomCount = Number(bedrooms);
-    const bathroomCount = Number(bathrooms);
+    const bedrooms = cleanBedrooms ? bedroomCount : 0;
+    const bathrooms = cleanBathrooms ? bathroomCount : 0;
 
     if (
-      !Number.isFinite(bedroomCount) ||
-      bedroomCount < 0 ||
-      !Number.isInteger(bedroomCount) ||
-      !Number.isFinite(bathroomCount) ||
-      bathroomCount < 0
+      (cleanBedrooms && (bedrooms < 1 || !Number.isInteger(bedrooms))) ||
+      (cleanBathrooms && (bathrooms < 1 || !Number.isFinite(bathrooms)))
     ) {
       return null;
     }
@@ -220,42 +415,54 @@ export function BookForm({
       visit_type: visitType,
       service_type: serviceType,
       home_type: homeType,
-      bedrooms: bedroomCount,
-      bathrooms: bathroomCount,
+      bedrooms,
+      bathrooms,
       square_feet_range: squareFeetRange,
       clean_bedrooms: cleanBedrooms,
       clean_bathrooms: cleanBathrooms,
       clean_kitchen: cleanKitchen,
       clean_common_area: cleanCommonArea,
       clean_hallways: cleanHallways,
+      clean_floors: false,
       home_condition: homeCondition,
-      clutter_level: clutterLevel,
+      bedroom_size: cleanBedrooms ? bedroomSize : undefined,
+      bedroom_condition: cleanBedrooms ? bedroomCondition : undefined,
+      bathroom_type: cleanBathrooms ? bathroomType : undefined,
+      kitchen_size: cleanKitchen ? kitchenSize : undefined,
+      living_area_size: cleanCommonArea ? livingAreaSize : undefined,
+      hallway_size: cleanHallways ? hallwaySize : undefined,
       kitchen_condition: kitchenCondition,
       bathroom_condition: bathroomCondition,
+      common_area_condition: livingAreaCondition,
       pet_hair_level: petHairLevel,
-      last_cleaned: lastCleaned || null,
-      floor_type: floorType,
+      last_cleaned: lastCleaned,
+      floor_type: "mixed",
       extra_tasks: extraTasks,
     };
   }, [
     visitType,
     serviceType,
     homeType,
-    bedrooms,
-    bathrooms,
-    squareFeetRange,
     cleanBedrooms,
+    bedroomCount,
     cleanBathrooms,
+    bathroomCount,
+    squareFeetRange,
     cleanKitchen,
     cleanCommonArea,
     cleanHallways,
     homeCondition,
-    clutterLevel,
+    bedroomSize,
+    bedroomCondition,
+    bathroomType,
+    kitchenSize,
+    livingAreaSize,
+    hallwaySize,
     kitchenCondition,
     bathroomCondition,
+    livingAreaCondition,
     petHairLevel,
     lastCleaned,
-    floorType,
     extraTasks,
   ]);
 
@@ -295,6 +502,50 @@ export function BookForm({
     requestedHours != null &&
     requestedHours < quote.recommended_hours;
 
+  function toggleArea(
+    key: (typeof AREA_OPTIONS)[number]["key"],
+    next: boolean
+  ) {
+    switch (key) {
+      case "bedrooms":
+        setCleanBedrooms(next);
+        if (next && bedroomCount < 1) {
+          setBedroomCount(1);
+        }
+        break;
+      case "bathrooms":
+        setCleanBathrooms(next);
+        if (next && bathroomCount < 1) {
+          setBathroomCount(1);
+        }
+        break;
+      case "kitchen":
+        setCleanKitchen(next);
+        break;
+      case "living":
+        setCleanCommonArea(next);
+        break;
+      case "hallways":
+        setCleanHallways(next);
+        break;
+    }
+  }
+
+  function isAreaSelected(key: (typeof AREA_OPTIONS)[number]["key"]): boolean {
+    switch (key) {
+      case "bedrooms":
+        return cleanBedrooms;
+      case "bathrooms":
+        return cleanBathrooms;
+      case "kitchen":
+        return cleanKitchen;
+      case "living":
+        return cleanCommonArea;
+      case "hallways":
+        return cleanHallways;
+    }
+  }
+
   function toggleExtraTask(task: ExtraTask) {
     setExtraTasks((current) =>
       current.includes(task)
@@ -329,9 +580,6 @@ export function BookForm({
   }
 
   function validateStep1(): string | null {
-    if (!intakeInput) {
-      return "Enter valid bedroom and bathroom counts.";
-    }
     if (
       !cleanBedrooms &&
       !cleanBathrooms &&
@@ -341,11 +589,14 @@ export function BookForm({
     ) {
       return "Select at least one area to clean.";
     }
-    if (cleanBedrooms && intakeInput.bedrooms < 1) {
-      return "Enter at least 1 bedroom when bedrooms are included.";
+    if (cleanBedrooms && bedroomCount < 1) {
+      return "Select at least 1 bedroom to clean.";
     }
-    if (cleanBathrooms && intakeInput.bathrooms < 1) {
-      return "Enter at least 1 bathroom when bathrooms are included.";
+    if (cleanBathrooms && bathroomCount < 1) {
+      return "Select at least 1 bathroom to clean.";
+    }
+    if (!intakeInput) {
+      return "Complete the cleaning scope details.";
     }
     return null;
   }
@@ -414,14 +665,13 @@ export function BookForm({
     cleanBedrooms ? "Bedrooms" : null,
     cleanBathrooms ? "Bathrooms" : null,
     cleanKitchen ? "Kitchen" : null,
-    cleanCommonArea ? "Common areas" : null,
+    cleanCommonArea ? "Living areas" : null,
     cleanHallways ? "Hallways" : null,
   ].filter(Boolean) as string[];
 
   const canSubmit = validateStep3() === null;
-
-  const selectClass =
-    "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+  const bedroomsHidden = cleanBedrooms ? String(bedroomCount) : "0";
+  const bathroomsHidden = cleanBathrooms ? String(bathroomCount) : "0";
 
   return (
     <Card className="w-full">
@@ -436,14 +686,34 @@ export function BookForm({
         </div>
       </CardHeader>
 
-      <form action={formAction} noValidate>
+      <form
+        action={formAction}
+        noValidate
+        onSubmit={(event) => {
+          if (step !== 3 || !canSubmit) {
+            event.preventDefault();
+          }
+        }}
+      >
         <input type="hidden" name="cleaner_id" value={cleanerId} />
+        <input type="hidden" name="bedrooms" value={bedroomsHidden} />
+        <input type="hidden" name="bathrooms" value={bathroomsHidden} />
         <input type="hidden" name="visit_type" value={visitType} />
         <input type="hidden" name="home_type" value={homeType} />
         <input type="hidden" name="square_feet_range" value={squareFeetRange} />
         <input type="hidden" name="service_type" value={serviceType} />
         <input type="hidden" name="home_condition" value={homeCondition} />
-        <input type="hidden" name="clutter_level" value={clutterLevel} />
+        <input type="hidden" name="bedroom_size" value={bedroomSize} />
+        <input type="hidden" name="bedroom_condition" value={bedroomCondition} />
+        <input type="hidden" name="bathroom_type" value={bathroomType} />
+        <input type="hidden" name="kitchen_size" value={kitchenSize} />
+        <input type="hidden" name="living_area_size" value={livingAreaSize} />
+        <input type="hidden" name="hallway_size" value={hallwaySize} />
+        <input
+          type="hidden"
+          name="common_area_condition"
+          value={livingAreaCondition}
+        />
         <input type="hidden" name="kitchen_condition" value={kitchenCondition} />
         <input
           type="hidden"
@@ -451,10 +721,8 @@ export function BookForm({
           value={bathroomCondition}
         />
         <input type="hidden" name="pet_hair_level" value={petHairLevel} />
-        <input type="hidden" name="floor_type" value={floorType} />
-        {lastCleaned ? (
-          <input type="hidden" name="last_cleaned" value={lastCleaned} />
-        ) : null}
+        <input type="hidden" name="floor_type" value="mixed" />
+        <input type="hidden" name="last_cleaned" value={lastCleaned} />
         <input
           type="hidden"
           name="clean_bedrooms"
@@ -480,6 +748,17 @@ export function BookForm({
           name="clean_hallways"
           value={cleanHallways ? "true" : "false"}
         />
+        <input type="hidden" name="clean_floors" value="false" />
+        <input
+          type="hidden"
+          name="supplies_needed"
+          value={suppliesNeeded ? "true" : "false"}
+        />
+        <input
+          type="hidden"
+          name="scope_ui_extras"
+          value={JSON.stringify(scopeUiExtras)}
+        />
         {requestedHours != null ? (
           <input
             type="hidden"
@@ -495,7 +774,7 @@ export function BookForm({
           <input key={task} type="hidden" name="extra_tasks" value={task} />
         ))}
 
-        <CardContent className="flex flex-col gap-6">
+        <CardContent className="flex flex-col gap-8">
           {state.error ? (
             <p
               role="alert"
@@ -516,283 +795,272 @@ export function BookForm({
 
           {step === 1 ? (
             <>
-              <section className="flex flex-col gap-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Visit & service
-                </h3>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <SelectField
-                    id="visit_type"
-                    label="Visit type"
-                    value={visitType}
-                    onChange={(value) => setVisitType(value as VisitType)}
-                    options={VISIT_TYPES.map((type) => ({
-                      value: type,
-                      label: getVisitTypeLabel(type),
-                    }))}
-                  />
-                  <SelectField
-                    id="service_type"
-                    label="Service type"
-                    value={serviceType}
-                    onChange={(value) => setServiceType(value as ServiceType)}
-                    options={SERVICE_TYPES.map((type) => ({
-                      value: type,
-                      label: getServiceTypeLabel(type),
-                    }))}
-                  />
-                </div>
-              </section>
-
-              <section className="flex flex-col gap-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Home details
-                </h3>
-                <SelectField
-                  id="home_type"
-                  label="Home type"
-                  value={homeType}
-                  onChange={(value) => setHomeType(value as HomeType)}
-                  options={HOME_TYPES.map((type) => ({
+              <section className="flex flex-col gap-6">
+                <PillGroup
+                  label="Visit type"
+                  value={visitType}
+                  onChange={setVisitType}
+                  columns={2}
+                  options={VISIT_TYPES.map((type) => ({
                     value: type,
-                    label: getHomeTypeLabel(type),
+                    label: getVisitTypeLabel(type),
                   }))}
                 />
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="bedrooms">Bedrooms</Label>
-                    <Input
-                      id="bedrooms"
-                      name="bedrooms"
-                      type="number"
-                      min={0}
-                      step={1}
-                      required
-                      value={bedrooms}
-                      onChange={(event) => setBedrooms(event.target.value)}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label htmlFor="bathrooms">Bathrooms</Label>
-                    <Input
-                      id="bathrooms"
-                      name="bathrooms"
-                      type="number"
-                      min={0}
-                      step={0.5}
-                      required
-                      value={bathrooms}
-                      onChange={(event) => setBathrooms(event.target.value)}
-                    />
-                  </div>
-                </div>
-                <SelectField
-                  id="square_feet_range"
-                  label="Home size"
-                  value={squareFeetRange}
-                  onChange={(value) =>
-                    setSquareFeetRange(value as SquareFeetRange)
-                  }
-                  options={SQUARE_FEET_RANGES.map((range) => ({
-                    value: range,
-                    label: getSquareFeetRangeLabel(range),
+                <PillGroup
+                  label="Service type"
+                  value={serviceType}
+                  onChange={setServiceType}
+                  columns={3}
+                  options={SERVICE_TYPES.map((type) => ({
+                    value: type,
+                    label: getServiceTypeLabel(type),
+                  }))}
+                />
+                <PillGroup
+                  label="Home type"
+                  value={homeType}
+                  onChange={setHomeType}
+                  columns={3}
+                  options={BOOKING_HOME_TYPES.map((type) => ({
+                    value: type,
+                    label: getHomeTypeLabel(type),
                   }))}
                 />
               </section>
 
               <section className="flex flex-col gap-3">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Areas to clean
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  Only selected areas are included in the time estimate.
+                <SectionHeading
+                  title="Areas to clean"
+                  description="Select at least one. Only chosen areas are included in the time estimate."
+                />
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {AREA_OPTIONS.map((area) => (
+                    <ToggleCard
+                      key={area.key}
+                      label={area.label}
+                      selected={isAreaSelected(area.key)}
+                      onToggle={() =>
+                        toggleArea(area.key, !isAreaSelected(area.key))
+                      }
+                    />
+                  ))}
+                </div>
+              </section>
+
+              {(cleanBedrooms ||
+                cleanBathrooms ||
+                cleanKitchen ||
+                cleanCommonArea ||
+                cleanHallways) && (
+                <section className="flex flex-col gap-3">
+                  <SectionHeading title="Area details" />
+                  <div className="flex flex-col gap-3">
+                    {cleanBedrooms ? (
+                      <AreaDetailPanel title="Bedrooms">
+                        <CountStepper
+                          label="Bedrooms to clean"
+                          value={bedroomCount}
+                          min={1}
+                          onChange={setBedroomCount}
+                        />
+                        <PillGroup
+                          label="Bedroom size"
+                          value={bedroomSize}
+                          onChange={setBedroomSize}
+                          columns={3}
+                          options={AREA_SIZE_OPTIONS}
+                        />
+                        <PillGroup
+                          label="Bedroom condition"
+                          value={bedroomCondition}
+                          onChange={setBedroomCondition}
+                          columns={3}
+                          options={AREA_CONDITIONS.map((c) => ({
+                            value: c,
+                            label: getAreaConditionLabel(c),
+                          }))}
+                        />
+                      </AreaDetailPanel>
+                    ) : null}
+
+                    {cleanBathrooms ? (
+                      <AreaDetailPanel title="Bathrooms">
+                        <CountStepper
+                          label="Bathrooms to clean"
+                          value={bathroomCount}
+                          min={1}
+                          onChange={setBathroomCount}
+                        />
+                        <PillGroup
+                          label="Bathroom type"
+                          value={bathroomType}
+                          onChange={setBathroomType}
+                          columns={3}
+                          options={BATHROOM_TYPE_OPTIONS}
+                        />
+                        <PillGroup
+                          label="Bathroom condition"
+                          value={bathroomCondition}
+                          onChange={setBathroomCondition}
+                          columns={3}
+                          options={AREA_CONDITIONS.map((c) => ({
+                            value: c,
+                            label: getAreaConditionLabel(c),
+                          }))}
+                        />
+                      </AreaDetailPanel>
+                    ) : null}
+
+                    {cleanKitchen ? (
+                      <AreaDetailPanel title="Kitchen">
+                        <PillGroup
+                          label="Kitchen size"
+                          value={kitchenSize}
+                          onChange={setKitchenSize}
+                          columns={3}
+                          options={AREA_SIZE_OPTIONS}
+                        />
+                        <PillGroup
+                          label="Kitchen condition"
+                          value={kitchenCondition}
+                          onChange={setKitchenCondition}
+                          columns={3}
+                          options={AREA_CONDITIONS.map((c) => ({
+                            value: c,
+                            label: getAreaConditionLabel(c),
+                          }))}
+                        />
+                      </AreaDetailPanel>
+                    ) : null}
+
+                    {cleanCommonArea ? (
+                      <AreaDetailPanel title="Living areas">
+                        <PillGroup
+                          label="Living / common area size"
+                          value={livingAreaSize}
+                          onChange={setLivingAreaSize}
+                          columns={2}
+                          options={LIVING_SIZE_OPTIONS}
+                        />
+                        <PillGroup
+                          label="Living / common area condition"
+                          value={livingAreaCondition}
+                          onChange={setLivingAreaCondition}
+                          columns={3}
+                          options={AREA_CONDITIONS.map((c) => ({
+                            value: c,
+                            label: getAreaConditionLabel(c),
+                          }))}
+                        />
+                      </AreaDetailPanel>
+                    ) : null}
+
+                    {cleanHallways ? (
+                      <AreaDetailPanel title="Hallways">
+                        <PillGroup
+                          label="Hallway size"
+                          value={hallwaySize}
+                          onChange={setHallwaySize}
+                          columns={3}
+                          options={AREA_SIZE_OPTIONS}
+                        />
+                      </AreaDetailPanel>
+                    ) : null}
+                  </div>
+                </section>
+              )}
+
+              <section className="flex flex-col gap-6">
+                <SectionHeading title="General condition" />
+                <PillGroup
+                  label="Pet hair"
+                  value={petHairLevel}
+                  onChange={setPetHairLevel}
+                  columns={3}
+                  options={PET_HAIR_LEVELS.map((level) => ({
+                    value: level,
+                    label: getPetHairLevelLabel(level),
+                  }))}
+                />
+                <PillGroup
+                  label="Last cleaned"
+                  value={uiLastCleaned}
+                  onChange={setUiLastCleaned}
+                  columns={2}
+                  options={UI_LAST_CLEANED_OPTIONS.map((option) => ({
+                    value: option,
+                    label: getUiLastCleanedLabel(option),
+                  }))}
+                />
+              </section>
+
+              <section className="flex flex-col gap-3">
+                <SectionHeading title="Add-on tasks" />
+                <div className="flex flex-wrap gap-2">
+                  {EXTRA_TASKS.map((task) => {
+                    const selected = extraTasks.includes(task);
+                    return (
+                      <button
+                        key={task}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => toggleExtraTask(task)}
+                        className={cn(
+                          "rounded-full border px-4 py-2 text-sm font-medium transition-colors",
+                          selected
+                            ? "border-[#00695C] bg-[#00695C]/10 text-[#00695C]"
+                            : "border-border bg-background hover:border-[#00695C]/40 hover:bg-muted/50"
+                        )}
+                      >
+                        {getExtraTaskLabel(task)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              <section className="flex flex-col gap-3">
+                <SectionHeading title="Supplies" />
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={suppliesNeeded}
+                    onChange={(event) => setSuppliesNeeded(event.target.checked)}
+                    className="mt-0.5 size-4 rounded border-input"
+                  />
+                  <span className="flex flex-col gap-1">
+                    <span className="text-sm font-medium text-foreground">
+                      Bring cleaning supplies
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      No change to the time or price estimate. Your cleaner will
+                      know to bring supplies if selected.
+                    </span>
+                  </span>
+                </label>
+              </section>
+
+              <section className="flex flex-col gap-2">
+                <Label htmlFor="special_requests">
+                  Special requests (optional)
+                </Label>
+                <Textarea
+                  id="special_requests"
+                  rows={3}
+                  placeholder="Access instructions, allergies, focus areas…"
+                  value={specialRequests}
+                  onChange={(event) => setSpecialRequests(event.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Shared with the cleaner. Does not change the price estimate.
                 </p>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {[
-                    {
-                      id: "clean_bedrooms",
-                      label: "Bedrooms",
-                      checked: cleanBedrooms,
-                      onChange: setCleanBedrooms,
-                    },
-                    {
-                      id: "clean_bathrooms",
-                      label: "Bathrooms",
-                      checked: cleanBathrooms,
-                      onChange: setCleanBathrooms,
-                    },
-                    {
-                      id: "clean_kitchen",
-                      label: "Kitchen",
-                      checked: cleanKitchen,
-                      onChange: setCleanKitchen,
-                    },
-                    {
-                      id: "clean_common_area",
-                      label: "Common areas",
-                      checked: cleanCommonArea,
-                      onChange: setCleanCommonArea,
-                    },
-                    {
-                      id: "clean_hallways",
-                      label: "Hallways",
-                      checked: cleanHallways,
-                      onChange: setCleanHallways,
-                    },
-                  ].map((area) => (
-                    <label
-                      key={area.id}
-                      className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={area.checked}
-                        onChange={(event) => area.onChange(event.target.checked)}
-                        className="size-4 rounded border-input"
-                      />
-                      <span>{area.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </section>
-
-              <section className="flex flex-col gap-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Condition
-                </h3>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <SelectField
-                    id="home_condition"
-                    label="Overall home condition"
-                    value={homeCondition}
-                    onChange={(value) =>
-                      setHomeCondition(value as HomeCondition)
-                    }
-                    options={HOME_CONDITIONS.map((condition) => ({
-                      value: condition,
-                      label: getHomeConditionLabel(condition),
-                    }))}
-                  />
-                  <SelectField
-                    id="clutter_level"
-                    label="Clutter level"
-                    value={clutterLevel}
-                    onChange={(value) => setClutterLevel(value as ClutterLevel)}
-                    options={CLUTTER_LEVELS.map((level) => ({
-                      value: level,
-                      label: getClutterLevelLabel(level),
-                    }))}
-                  />
-                  <SelectField
-                    id="kitchen_condition"
-                    label="Kitchen condition"
-                    value={kitchenCondition}
-                    onChange={(value) =>
-                      setKitchenCondition(value as AreaCondition)
-                    }
-                    options={AREA_CONDITIONS.map((condition) => ({
-                      value: condition,
-                      label: getAreaConditionLabel(condition),
-                    }))}
-                  />
-                  <SelectField
-                    id="bathroom_condition"
-                    label="Bathroom condition"
-                    value={bathroomCondition}
-                    onChange={(value) =>
-                      setBathroomCondition(value as AreaCondition)
-                    }
-                    options={AREA_CONDITIONS.map((condition) => ({
-                      value: condition,
-                      label: getAreaConditionLabel(condition),
-                    }))}
-                  />
-                  <SelectField
-                    id="pet_hair_level"
-                    label="Pet hair"
-                    value={petHairLevel}
-                    onChange={(value) =>
-                      setPetHairLevel(value as PetHairLevel)
-                    }
-                    options={PET_HAIR_LEVELS.map((level) => ({
-                      value: level,
-                      label: getPetHairLevelLabel(level),
-                    }))}
-                  />
-                  <SelectField
-                    id="floor_type"
-                    label="Floor type"
-                    value={floorType}
-                    onChange={(value) => setFloorType(value as FloorType)}
-                    options={FLOOR_TYPES.map((type) => ({
-                      value: type,
-                      label: getFloorTypeLabel(type),
-                    }))}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="last_cleaned">Last cleaned (optional)</Label>
-                  <select
-                    id="last_cleaned"
-                    className={selectClass}
-                    value={lastCleaned}
-                    onChange={(event) =>
-                      setLastCleaned(event.target.value as LastCleaned | "")
-                    }
-                  >
-                    <option value="">Not specified</option>
-                    {LAST_CLEANED_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {getLastCleanedLabel(option)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </section>
-
-              <section className="flex flex-col gap-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  Extra tasks
-                </h3>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {EXTRA_TASKS.map((task) => (
-                    <label
-                      key={task}
-                      className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={extraTasks.includes(task)}
-                        onChange={() => toggleExtraTask(task)}
-                        className="size-4 rounded border-input"
-                      />
-                      <span>{getExtraTaskLabel(task)}</span>
-                    </label>
-                  ))}
-                </div>
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="special_requests">
-                    Special requests (optional)
-                  </Label>
-                  <Textarea
-                    id="special_requests"
-                    rows={3}
-                    placeholder="Access instructions, allergies, focus areas…"
-                    value={specialRequests}
-                    onChange={(event) => setSpecialRequests(event.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Special requests are shared with the cleaner but do not
-                    change the price estimate.
-                  </p>
-                </div>
               </section>
             </>
           ) : null}
 
           {step === 2 ? (
             <>
-              <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+              <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm">
                 <p className="font-medium text-foreground">Cleaner hourly rate</p>
                 <p className="mt-1 text-muted-foreground">
                   {formatHourlyRate(hourlyRate)}
@@ -800,31 +1068,33 @@ export function BookForm({
               </div>
 
               {quote ? (
-                <section className="rounded-lg border border-[#00695C]/20 bg-[#00695C]/5 px-4 py-3 text-sm">
-                  <p className="font-semibold text-gray-900">
-                    Recommended: {formatHours(quote.recommended_hours)} hours
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    Allowed range: {formatHours(quote.minimum_hours)}–
-                    {formatHours(quote.maximum_hours)} hours
-                  </p>
-                  <ul className="mt-3 space-y-1 text-muted-foreground">
+                <section className="rounded-xl border border-[#00695C]/20 bg-[#00695C]/5 px-4 py-4 text-sm">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
+                    <p className="font-semibold text-foreground">
+                      Recommended: {formatHours(quote.recommended_hours)} hours
+                    </p>
+                    <p className="text-muted-foreground">
+                      Allowed: {formatHours(quote.minimum_hours)}–
+                      {formatHours(quote.maximum_hours)} hours
+                    </p>
+                  </div>
+                  <ul className="mt-4 space-y-1.5 text-muted-foreground">
                     {quote.breakdown.map((item) => (
                       <li
                         key={item.label}
                         className="flex justify-between gap-4"
                       >
                         <span>{item.label}</span>
-                        <span className="text-foreground">
+                        <span className="shrink-0 text-foreground">
                           {item.minutes > 0 ? "+" : ""}
                           {item.minutes} min
                         </span>
                       </li>
                     ))}
-                    <li className="flex justify-between gap-4 border-t border-[#00695C]/10 pt-1">
+                    <li className="flex justify-between gap-4 border-t border-[#00695C]/10 pt-2 text-xs">
                       <span>
-                        Service type ×{quote.service_type_multiplier}, visit type
-                        ×{quote.visit_type_multiplier}
+                        Service ×{quote.service_type_multiplier}, visit ×
+                        {quote.visit_type_multiplier}
                       </span>
                     </li>
                     <li className="flex justify-between gap-4">
@@ -840,7 +1110,7 @@ export function BookForm({
               {quote && requestedHours != null ? (
                 <section className="flex flex-col gap-3">
                   <Label>Your requested hours</Label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     <Button
                       type="button"
                       variant="outline"
@@ -850,8 +1120,13 @@ export function BookForm({
                     >
                       <Minus className="size-4" />
                     </Button>
-                    <div className="min-w-[5rem] text-center text-lg font-semibold">
-                      {formatHours(requestedHours)} hrs
+                    <div className="min-w-[6rem] text-center">
+                      <span className="text-2xl font-semibold">
+                        {formatHours(requestedHours)}
+                      </span>
+                      <span className="ml-1 text-sm text-muted-foreground">
+                        hrs
+                      </span>
                     </div>
                     <Button
                       type="button"
@@ -879,9 +1154,9 @@ export function BookForm({
               ) : null}
 
               {pricing ? (
-                <div className="rounded-lg border border-[#00695C]/20 bg-[#00695C]/5 px-4 py-3 text-sm">
-                  <p className="font-semibold text-gray-900">Estimated total</p>
-                  <dl className="mt-2 space-y-1.5 text-muted-foreground">
+                <div className="rounded-xl border border-[#00695C]/20 bg-[#00695C]/5 px-4 py-4 text-sm">
+                  <p className="font-semibold text-foreground">Price breakdown</p>
+                  <dl className="mt-3 space-y-2 text-muted-foreground">
                     <div className="flex justify-between gap-4">
                       <dt>Service price</dt>
                       <dd className="text-foreground">
@@ -894,8 +1169,8 @@ export function BookForm({
                         {formatUsd(pricing.platform_fee)}
                       </dd>
                     </div>
-                    <div className="flex justify-between gap-4 border-t border-[#00695C]/10 pt-2 font-semibold text-gray-900">
-                      <dt>Total</dt>
+                    <div className="flex justify-between gap-4 border-t border-[#00695C]/10 pt-2 text-base font-semibold text-foreground">
+                      <dt>Estimated total</dt>
                       <dd>{formatUsd(pricing.total_price)}</dd>
                     </div>
                   </dl>
@@ -914,31 +1189,31 @@ export function BookForm({
 
           {step === 3 ? (
             <>
-              <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+              <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm">
                 <p className="font-medium text-foreground">Cleaner</p>
                 <p className="mt-1 text-muted-foreground">{cleanerName}</p>
               </div>
 
               <section className="flex flex-col gap-3 text-sm">
                 <h3 className="font-semibold text-foreground">Scope summary</h3>
-                <dl className="space-y-2 text-muted-foreground">
+                <dl className="space-y-2 rounded-xl border px-4 py-3 text-muted-foreground">
                   <div className="flex justify-between gap-4">
                     <dt>Visit</dt>
-                    <dd className="text-foreground">
+                    <dd className="text-right text-foreground">
                       {getVisitTypeLabel(visitType)}
                     </dd>
                   </div>
                   <div className="flex justify-between gap-4">
                     <dt>Service</dt>
-                    <dd className="text-foreground">
+                    <dd className="text-right text-foreground">
                       {getServiceTypeLabel(serviceType)}
                     </dd>
                   </div>
                   <div className="flex justify-between gap-4">
                     <dt>Home</dt>
                     <dd className="text-right text-foreground">
-                      {getHomeTypeLabel(homeType)}, {bedrooms} bed /{" "}
-                      {bathrooms} bath, {getSquareFeetRangeLabel(squareFeetRange)}
+                      {getHomeTypeLabel(homeType)},{" "}
+                      {getUiSquareFeetLabel(uiSquareFeet)}
                     </dd>
                   </div>
                   <div className="flex justify-between gap-4">
@@ -947,41 +1222,69 @@ export function BookForm({
                       {selectedAreas.join(", ")}
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-4">
-                    <dt>Condition</dt>
-                    <dd className="text-right text-foreground">
-                      {getHomeConditionLabel(homeCondition)},{" "}
-                      {getClutterLevelLabel(clutterLevel)} clutter
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt>Kitchen / bathroom</dt>
-                    <dd className="text-right text-foreground">
-                      {getAreaConditionLabel(kitchenCondition)} /{" "}
-                      {getAreaConditionLabel(bathroomCondition)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt>Pet hair / floors</dt>
-                    <dd className="text-right text-foreground">
-                      {getPetHairLevelLabel(petHairLevel)},{" "}
-                      {getFloorTypeLabel(floorType)}
-                    </dd>
-                  </div>
-                  {lastCleaned ? (
+                  {cleanBedrooms ? (
                     <div className="flex justify-between gap-4">
-                      <dt>Last cleaned</dt>
-                      <dd className="text-foreground">
-                        {getLastCleanedLabel(lastCleaned)}
+                      <dt>Bedrooms</dt>
+                      <dd className="text-right text-foreground">
+                        {bedroomCount} · {formatAreaSize(bedroomSize)} ·{" "}
+                        {getAreaConditionLabel(bedroomCondition)}
                       </dd>
                     </div>
                   ) : null}
+                  {cleanBathrooms ? (
+                    <div className="flex justify-between gap-4">
+                      <dt>Bathrooms</dt>
+                      <dd className="text-right text-foreground">
+                        {bathroomCount} · {formatBathroomType(bathroomType)} ·{" "}
+                        {getAreaConditionLabel(bathroomCondition)}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {cleanKitchen ? (
+                    <div className="flex justify-between gap-4">
+                      <dt>Kitchen</dt>
+                      <dd className="text-right text-foreground">
+                        {formatAreaSize(kitchenSize)} ·{" "}
+                        {getAreaConditionLabel(kitchenCondition)}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {cleanCommonArea ? (
+                    <div className="flex justify-between gap-4">
+                      <dt>Living areas</dt>
+                      <dd className="text-right text-foreground">
+                        {formatAreaSize(livingAreaSize)} ·{" "}
+                        {getAreaConditionLabel(livingAreaCondition)}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {cleanHallways ? (
+                    <div className="flex justify-between gap-4">
+                      <dt>Hallways</dt>
+                      <dd className="text-right text-foreground">
+                        {formatAreaSize(hallwaySize)}
+                      </dd>
+                    </div>
+                  ) : null}
+                  <div className="flex justify-between gap-4 border-t pt-2">
+                    <dt>General</dt>
+                    <dd className="text-right text-foreground">
+                      {getPetHairLevelLabel(petHairLevel)} ·{" "}
+                      {getUiLastCleanedLabel(uiLastCleaned)}
+                    </dd>
+                  </div>
                   {extraTasks.length > 0 ? (
                     <div className="flex justify-between gap-4">
-                      <dt>Extra tasks</dt>
+                      <dt>Add-ons</dt>
                       <dd className="text-right text-foreground">
                         {extraTasks.map(getExtraTaskLabel).join(", ")}
                       </dd>
+                    </div>
+                  ) : null}
+                  {suppliesNeeded ? (
+                    <div className="flex justify-between gap-4">
+                      <dt>Supplies</dt>
+                      <dd className="text-foreground">Cleaner brings supplies</dd>
                     </div>
                   ) : null}
                 </dl>
@@ -989,7 +1292,7 @@ export function BookForm({
 
               <section className="flex flex-col gap-3 text-sm">
                 <h3 className="font-semibold text-foreground">Time & price</h3>
-                <dl className="space-y-2 text-muted-foreground">
+                <dl className="space-y-2 rounded-xl border px-4 py-3 text-muted-foreground">
                   <div className="flex justify-between gap-4">
                     <dt>Recommended hours</dt>
                     <dd className="text-foreground">
@@ -998,7 +1301,7 @@ export function BookForm({
                   </div>
                   <div className="flex justify-between gap-4">
                     <dt>Requested hours</dt>
-                    <dd className="text-foreground">
+                    <dd className="text-foreground bg-gray-300 rounded p-0.5">
                       {requestedHours != null
                         ? `${formatHours(requestedHours)} hrs`
                         : "—"}
@@ -1010,23 +1313,27 @@ export function BookForm({
                       {formatHourlyRate(hourlyRate)}
                     </dd>
                   </div>
-                  <div className="flex justify-between gap-4 font-semibold text-gray-900">
-                    <dt>Total</dt>
+                  <div className="flex justify-between gap-4">
+                    <dt>Service Fee (15% of hourly total)</dt>
+                    <dd className="text-foreground">
+                      {formatUsd(pricing?.platform_fee ?? 0)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-4 border-t pt-2 font-semibold text-foreground">
+                    <dt>Estimated total</dt>
                     <dd>{pricing ? formatUsd(pricing.total_price) : "—"}</dd>
                   </div>
                 </dl>
               </section>
 
-              <p className="rounded-lg border border-[#00695C]/20 bg-[#00695C]/5 px-4 py-3 text-sm text-muted-foreground">
+              <p className="rounded-xl border border-[#00695C]/20 bg-[#00695C]/5 px-4 py-3 text-sm text-muted-foreground">
                 Your request is based on the scope and condition details you
                 submitted. The cleaner can accept, decline, or suggest an
                 adjustment before the booking is confirmed.
               </p>
 
               <section className="flex flex-col gap-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  When &amp; where
-                </h3>
+                <SectionHeading title="When & where" />
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="service_address">Service address</Label>
                   <Input
@@ -1068,7 +1375,7 @@ export function BookForm({
                   <h3 className="font-semibold text-foreground">
                     Special requests
                   </h3>
-                  <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
+                  <p className="mt-2 whitespace-pre-wrap rounded-xl border px-4 py-3 text-muted-foreground">
                     {specialRequests}
                   </p>
                 </section>
@@ -1077,7 +1384,7 @@ export function BookForm({
           ) : null}
         </CardContent>
 
-        <CardFooter className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+        <CardFooter className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between mt-5">
           {step > 1 ? (
             <Button type="button" variant="outline" onClick={goBack}>
               Back
