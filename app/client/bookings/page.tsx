@@ -9,6 +9,7 @@ import { ReviewBookingForm } from "@/app/client/bookings/review-booking-form";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 import { formatUsdFromCents } from "@/lib/booking-price";
+import { hasCompletionStarted } from "@/lib/booking-completion";
 import { parseCounterAdjustments } from "@/lib/counter-offer";
 import type { Json } from "@/lib/database.types";
 
@@ -28,6 +29,8 @@ type ClientBooking = {
   counter_hours: number | null;
   counter_total_price_cents: number | null;
   counter_reason: string | null;
+  cleaner_marked_complete_at: string | null;
+  client_marked_complete_at: string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -105,14 +108,21 @@ function formatHoursValue(hours: number | null): string {
 }
 
 function BookingCard({ booking }: { booking: ClientBooking }) {
+  const totalPrice = formatUsdFromCents(booking.total_price_cents);
+  const counterTotalPrice = formatUsdFromCents(booking.counter_total_price_cents);
+
   const showCleaner =
     booking.cleaner_id != null && booking.cleaner_name != null;
-  const canMarkComplete =
-    booking.status === "confirmed" || booking.status === "in_progress";
+  const completionStarted = hasCompletionStarted(booking);
+  const canConfirmComplete =
+    booking.status === "confirmed" && booking.client_marked_complete_at == null;
   const canReview =
     booking.status === "completed" && !booking.has_review;
   const canCancel =
-    booking.status === "pending" || booking.status === "confirmed";
+    booking.status === "pending" ||
+    (booking.status === "confirmed" && !completionStarted);
+  const cancelDisabled =
+    booking.status === "confirmed" && completionStarted;
   const counterAdjustments = parseCounterAdjustments(booking.counter_adjustments);
   const originalHours =
     booking.client_requested_hours ?? booking.duration_hours;
@@ -149,6 +159,15 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
           <Clock className="h-4 w-4 shrink-0 text-gray-400" aria-hidden />
           <span>{formatDuration(displayHours)}</span>
         </div>
+        <div>
+          {booking.status === "countered" ? 
+            <span className="text-gray-800 text-sm font-bold">
+              Requested Total Price: {counterTotalPrice}
+            </span>
+           :
+           <span className="text-gray-800 font-bold">{totalPrice} </span>
+           }     
+        </div>
       </div>
 
       {booking.notes ? (
@@ -172,7 +191,7 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
               {formatUsdFromCents(booking.total_price_cents)}
             </p>
             <p>
-              <span className="text-gray-500">Cleaner suggested hours: </span>
+              <span className="text-gray-500">Cleaner requested hours: </span>
               {formatHoursValue(booking.counter_hours)}
             </p>
             <p>
@@ -197,7 +216,7 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
           {booking.counter_reason ? (
             <div className="mt-4">
               <p className="text-sm font-medium text-gray-900">
-                Cleaner&apos;s reason
+                Cleaner&apos;s counter reason
               </p>
               <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">
                 {booking.counter_reason}
@@ -209,15 +228,31 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
         </section>
       ) : null}
 
-      <div className="mt-4 flex items-center justify-between ">
-        {canMarkComplete ? <MarkCompleteForm bookingId={booking.id} /> : null}
+      <div className="mt-4 flex flex-col gap-2">
+        {canConfirmComplete ? <MarkCompleteForm bookingId={booking.id} /> : null}
 
-        {canCancel ? <CancelBookingForm bookingId={booking.id} /> : null}
+        {booking.status === "confirmed" &&
+        booking.client_marked_complete_at != null &&
+        booking.cleaner_marked_complete_at == null ? (
+          <p className="text-sm text-gray-600">
+            Completion confirmed. Waiting for cleaner to mark the job complete.
+          </p>
+        ) : null}
+
+        {canCancel ? (
+          <CancelBookingForm bookingId={booking.id} />
+        ) : cancelDisabled ? (
+          <CancelBookingForm
+            bookingId={booking.id}
+            disabled
+            disabledReason="Cannot cancel after completion has been started."
+          />
+        ) : null}
 
         {canReview ? <ReviewBookingForm bookingId={booking.id} /> : null}
 
         {booking.status === "completed" && booking.has_review ? (
-          <p className="mt-4 text-sm text-gray-500">
+          <p className="text-sm text-gray-500">
             Review submitted — thank you!
           </p>
         ) : null}
@@ -249,7 +284,7 @@ export default async function BookingsPage() {
   const { data: bookings, error } = await supabase
     .from("bookings")
     .select(
-      "id, service_address, scheduled_at, duration_hours, notes, status, cleaner_id, client_requested_hours, total_price_cents, counter_adjustments, counter_hours, counter_total_price_cents, counter_reason"
+      "id, service_address, scheduled_at, duration_hours, notes, status, cleaner_id, client_requested_hours, total_price_cents, counter_adjustments, counter_hours, counter_total_price_cents, counter_reason, cleaner_marked_complete_at, client_marked_complete_at"
     )
     .eq("client_id", user.id)
     .order("scheduled_at", { ascending: false });

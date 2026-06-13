@@ -52,8 +52,12 @@ export type Database = {
           clean_floors: boolean | null
           clean_kitchen: boolean | null
           cleaner_id: string | null
+          cleaner_marked_complete_at: string | null
           client_id: string
+          client_marked_complete_at: string | null
           client_requested_hours: number | null
+          completion_dispute_reason: string | null
+          completion_disputed_at: string | null
           clutter_level: string | null
           counter_adjustments: Json | null
           counter_hours: number | null
@@ -78,6 +82,7 @@ export type Database = {
           minimum_hours: number | null
           notes: string | null
           pet_hair_level: string | null
+          payout_status: string
           platform_fee: number | null
           platform_fee_cents: number | null
           recommended_hours: number | null
@@ -106,8 +111,12 @@ export type Database = {
           clean_floors?: boolean | null
           clean_kitchen?: boolean | null
           cleaner_id?: string | null
+          cleaner_marked_complete_at?: string | null
           client_id?: string
+          client_marked_complete_at?: string | null
           client_requested_hours?: number | null
+          completion_dispute_reason?: string | null
+          completion_disputed_at?: string | null
           clutter_level?: string | null
           counter_adjustments?: Json | null
           counter_hours?: number | null
@@ -132,6 +141,7 @@ export type Database = {
           minimum_hours?: number | null
           notes?: string | null
           pet_hair_level?: string | null
+          payout_status?: string
           platform_fee?: number | null
           platform_fee_cents?: number | null
           recommended_hours?: number | null
@@ -160,8 +170,12 @@ export type Database = {
           clean_floors?: boolean | null
           clean_kitchen?: boolean | null
           cleaner_id?: string | null
+          cleaner_marked_complete_at?: string | null
           client_id?: string
+          client_marked_complete_at?: string | null
           client_requested_hours?: number | null
+          completion_dispute_reason?: string | null
+          completion_disputed_at?: string | null
           clutter_level?: string | null
           counter_adjustments?: Json | null
           counter_hours?: number | null
@@ -186,6 +200,7 @@ export type Database = {
           minimum_hours?: number | null
           notes?: string | null
           pet_hair_level?: string | null
+          payout_status?: string
           platform_fee?: number | null
           platform_fee_cents?: number | null
           recommended_hours?: number | null

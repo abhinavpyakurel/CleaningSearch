@@ -2,11 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CornerLeftDown } from "lucide-react";
 import {
-  acceptJobAction,
   toggleCleanerAvailability,
 } from "@/app/cleaner/dashboard/actions";
 import { CleanerStatsCard } from "@/app/cleaner/dashboard/cleaner-stats-card";
-import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 
@@ -16,6 +14,8 @@ type JobListing = {
   scheduled_at: string | null;
   duration_hours: number | null;
   notes: string | null;
+  cleaner_marked_complete_at?: string | null;
+  client_marked_complete_at?: string | null;
 };
 
 function formatScheduledAt(iso: string | null): string {
@@ -49,11 +49,16 @@ function formatDuration(hours: number | null): string {
 
 function JobCard({
   job,
-  showAccept,
+  showCompletionHint,
 }: {
   job: JobListing;
-  showAccept?: boolean;
+  showCompletionHint?: boolean;
 }) {
+  const waitingForClient =
+    showCompletionHint &&
+    job.cleaner_marked_complete_at != null &&
+    job.client_marked_complete_at == null;
+
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-2 text-sm text-gray-700">
@@ -75,13 +80,20 @@ function JobCard({
             <span className="whitespace-pre-wrap">{job.notes}</span>
           </p>
         ) : null}
+
+        {waitingForClient ? (
+          <p className="text-sm text-gray-500">
+            Waiting for client confirmation.
+          </p>
+        ) : null}
       </div>
-      {showAccept ? (
-        <form action={acceptJobAction} className="mt-4">
-          <input type="hidden" name="booking_id" value={job.id} />
-          <Button type="submit">Accept job</Button>
-        </form>
-      ) : null}
+
+      <Link
+        href={`/cleaner/jobs/${job.id}`}
+        className="mt-4 inline-block text-sm font-semibold text-[#00695C] hover:underline"
+      >
+        View job details
+      </Link>
     </div>
   );
 }
@@ -115,7 +127,7 @@ export default async function CleanerDashboardPage() {
     .maybeSingle();
 
   const jobSelect =
-    "id, service_address, scheduled_at, duration_hours, notes" as const;
+    "id, service_address, scheduled_at, duration_hours, notes, cleaner_marked_complete_at, client_marked_complete_at" as const;
 
   const [{ data: availableJobs }, { data: myJobs }] = await Promise.all([
     supabase
@@ -243,7 +255,7 @@ export default async function CleanerDashboardPage() {
               <ul className="flex flex-col gap-4">
                 {availableJobs.map((job) => (
                   <li key={job.id}>
-                    <JobCard job={job} showAccept />
+                    <JobCard job={job} />
                   </li>
                 ))}
               </ul>
@@ -260,7 +272,7 @@ export default async function CleanerDashboardPage() {
               <ul className="flex flex-col gap-4">
                 {myJobs.map((job) => (
                   <li key={job.id}>
-                    <JobCard job={job} />
+                    <JobCard job={job} showCompletionHint />
                   </li>
                 ))}
               </ul>

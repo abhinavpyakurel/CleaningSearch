@@ -6,6 +6,7 @@ import {
   getBookingUpdateFromCounterScope,
   parseScopeSnapshot,
 } from "@/lib/counter-offer";
+import { buildCompletionUpdate } from "@/lib/booking-completion";
 import { createClient } from "@/lib/supabase/server";
 
 async function getAuthenticatedClient() {
@@ -52,7 +53,9 @@ export async function markBookingCompletedAction(
 
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
-    .select("id, client_id, cleaner_id, status")
+    .select(
+      "id, client_id, cleaner_id, status, cleaner_marked_complete_at, client_marked_complete_at"
+    )
     .eq("id", bookingId)
     .maybeSingle();
 
@@ -68,15 +71,24 @@ export async function markBookingCompletedAction(
     return { error: "You cannot complete this booking." };
   }
 
-  if (booking.status !== "confirmed" && booking.status !== "in_progress") {
+  if (booking.status !== "confirmed") {
     return { error: "This booking cannot be marked completed." };
   }
 
+  if (booking.client_marked_complete_at != null) {
+    return { error: "You have already confirmed completion." };
+  }
+
+  const nowIso = new Date().toISOString();
+  const updatePayload = buildCompletionUpdate(booking, "client", nowIso);
+
   const { data: updated, error: updateError } = await supabase
     .from("bookings")
-    .update({ status: "completed" })
+    .update(updatePayload)
     .eq("id", bookingId)
     .eq("client_id", user.id)
+    .eq("status", "confirmed")
+    .is("client_marked_complete_at", null)
     .select("id")
     .maybeSingle();
 
@@ -89,6 +101,8 @@ export async function markBookingCompletedAction(
   }
 
   revalidatePath("/client/bookings");
+  revalidatePath(`/cleaner/jobs/${bookingId}`);
+  revalidatePath("/cleaner/dashboard");
   return { error: null };
 }
 
@@ -114,7 +128,9 @@ export async function cancelBookingAction(
 
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
-    .select("id, client_id, status, scheduled_at")
+    .select(
+      "id, client_id, status, scheduled_at, cleaner_marked_complete_at, client_marked_complete_at"
+    )
     .eq("id", bookingId)
     .maybeSingle();
 
@@ -135,6 +151,15 @@ export async function cancelBookingAction(
   }
 
   if (booking.status === "confirmed") {
+    if (
+      booking.cleaner_marked_complete_at != null ||
+      booking.client_marked_complete_at != null
+    ) {
+      return {
+        error: "Cannot cancel after completion has been started.",
+      };
+    }
+
     const scheduledTime = booking.scheduled_at
       ? new Date(booking.scheduled_at).getTime()
       : NaN;
