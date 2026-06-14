@@ -9,7 +9,7 @@ export type CompletionUpdatePayload = {
   cleaner_marked_complete_at?: string;
   client_marked_complete_at?: string;
   status?: "completed";
-  payout_status?: "pending_release";
+  payout_status?: "ready";
 };
 
 export function buildCompletionUpdate(
@@ -24,7 +24,7 @@ export function buildCompletionUpdate(
 
     if (booking.cleaner_marked_complete_at != null) {
       payload.status = "completed";
-      payload.payout_status = "pending_release";
+      payload.payout_status = "ready";
     }
 
     return payload;
@@ -36,7 +36,7 @@ export function buildCompletionUpdate(
 
   if (booking.client_marked_complete_at != null) {
     payload.status = "completed";
-    payload.payout_status = "pending_release";
+    payload.payout_status = "ready";
   }
 
   return payload;
@@ -50,9 +50,9 @@ export function hasCompletionStarted(booking: CompletionBookingFields): boolean 
 }
 
 const PAYOUT_STATUS_LABELS: Record<string, string> = {
-  not_ready: "Not ready",
-  pending_release: "Pending release",
-  released: "Released",
+  locked: "Locked",
+  ready: "Ready",
+  paid: "Paid",
   paused: "Paused",
 };
 

@@ -17,6 +17,12 @@ export type BookingPricingCents = {
   total_price_cents: number;
 };
 
+export type AcceptedBookingPricingCents = {
+  cleaner_payout_cents: number;
+  platform_fee_cents: number;
+  total_price_cents: number;
+};
+
 export function computeBookingPricing(
   hourlyRate: number,
   durationHours: number
@@ -39,6 +45,19 @@ export function computeBookingPricingCents(
   const total_price_cents = service_price_cents + platform_fee_cents;
 
   return { service_price_cents, platform_fee_cents, total_price_cents };
+}
+
+export function computeAcceptedBookingPricingCents(
+  hourlyRate: number,
+  hours: number
+): AcceptedBookingPricingCents {
+  const cleaner_payout_cents = Math.round(hourlyRate * hours * 100);
+  const platform_fee_cents = Math.round(
+    cleaner_payout_cents * PLATFORM_SERVICE_FEE_RATE
+  );
+  const total_price_cents = cleaner_payout_cents + platform_fee_cents;
+
+  return { cleaner_payout_cents, platform_fee_cents, total_price_cents };
 }
 
 type BookingPriceFields = {

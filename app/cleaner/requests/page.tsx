@@ -1,13 +1,9 @@
 import { redirect } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
-import {
-  acceptRequestAction,
-  declineRequestAction,
-} from "@/app/cleaner/requests/actions";
 import { CounterOfferForm } from "@/app/cleaner/requests/counter-offer-form";
+import { RequestResponseForms } from "@/app/cleaner/requests/request-response-forms";
 import { BookingPhotoGallery } from "@/app/cleaner/requests/booking-photo-gallery";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -186,18 +182,8 @@ function RequestCard({ request }: { request: PendingRequest }) {
         )}
       </CardContent>
       <CardFooter className="flex flex-col items-stretch gap-3">
-        <div className="flex flex-wrap gap-2">
-          <form action={acceptRequestAction}>
-            <input type="hidden" name="booking_id" value={request.id} />
-            <Button type="submit">Accept</Button>
-          </form>
-          <form action={declineRequestAction}>
-            <input type="hidden" name="booking_id" value={request.id} />
-            <Button type="submit" variant="outline">
-              Decline
-            </Button>
-          </form>
-          {counterFormConfig ? (
+        <RequestResponseForms bookingId={request.id} />
+        {counterFormConfig ? (
             <CounterOfferForm
               bookingId={request.id}
               editableFields={counterFormConfig.editableFields}
@@ -210,7 +196,6 @@ function RequestCard({ request }: { request: PendingRequest }) {
               hourlyRateSnapshot={request.hourly_rate_snapshot}
             />
           ) : null}
-        </div>
       </CardFooter>
     </Card>
   );

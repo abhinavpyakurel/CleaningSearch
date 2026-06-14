@@ -1128,11 +1128,13 @@ export function getBookingUpdateFromCounterScope(
     duration_hours: pricing.client_requested_hours,
     hourly_rate_snapshot: pricing.hourly_rate_snapshot,
     service_price_cents: pricing.service_price_cents,
+    cleaner_payout_cents: pricing.service_price_cents,
     platform_fee_cents: pricing.platform_fee_cents,
     total_price_cents: pricing.total_price_cents,
     base_price: pricing.base_price,
     platform_fee: pricing.platform_fee,
     total_price: pricing.total_price,
-    status: "confirmed",
+    status: "accepted_pending_payment",
+    payment_status: "unpaid",
   };
 }

@@ -53,6 +53,7 @@ export type Database = {
           clean_kitchen: boolean | null
           cleaner_id: string | null
           cleaner_marked_complete_at: string | null
+          cleaner_payout_cents: number | null
           client_id: string
           client_marked_complete_at: string | null
           client_requested_hours: number | null
@@ -81,6 +82,8 @@ export type Database = {
           mess_level: string | null
           minimum_hours: number | null
           notes: string | null
+          paid_at: string | null
+          payment_status: string
           pet_hair_level: string | null
           payout_status: string
           platform_fee: number | null
@@ -112,6 +115,7 @@ export type Database = {
           clean_kitchen?: boolean | null
           cleaner_id?: string | null
           cleaner_marked_complete_at?: string | null
+          cleaner_payout_cents?: number | null
           client_id?: string
           client_marked_complete_at?: string | null
           client_requested_hours?: number | null
@@ -140,6 +144,8 @@ export type Database = {
           mess_level?: string | null
           minimum_hours?: number | null
           notes?: string | null
+          paid_at?: string | null
+          payment_status?: string
           pet_hair_level?: string | null
           payout_status?: string
           platform_fee?: number | null
@@ -171,6 +177,7 @@ export type Database = {
           clean_kitchen?: boolean | null
           cleaner_id?: string | null
           cleaner_marked_complete_at?: string | null
+          cleaner_payout_cents?: number | null
           client_id?: string
           client_marked_complete_at?: string | null
           client_requested_hours?: number | null
@@ -199,6 +206,8 @@ export type Database = {
           mess_level?: string | null
           minimum_hours?: number | null
           notes?: string | null
+          paid_at?: string | null
+          payment_status?: string
           pet_hair_level?: string | null
           payout_status?: string
           platform_fee?: number | null

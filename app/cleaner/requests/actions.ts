@@ -14,6 +14,7 @@ import {
   type CounterOfferSubmission,
 } from "@/lib/counter-offer";
 import { EXTRA_TASKS, type ExtraTask } from "@/lib/intake-estimate";
+import { computeAcceptedBookingPricingCents } from "@/lib/booking-price";
 import { createClient } from "@/lib/supabase/server";
 
 export type CounterOfferActionState = { error: string | null };
@@ -39,6 +40,15 @@ async function getAuthenticatedCleaner() {
   }
 
   return { supabase, user, error: null };
+}
+
+function parseNumericField(value: unknown): number | null {
+  if (value == null) {
+    return null;
+  }
+
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function parseOptionalString(formData: FormData, key: string): string | undefined {
@@ -91,7 +101,7 @@ function parseCounterSubmission(formData: FormData): CounterOfferSubmission {
 
 async function updatePendingRequest(
   formData: FormData,
-  status: "confirmed" | "cancelled"
+  status: "cancelled"
 ): Promise<{ error: string | null }> {
   const bookingId = String(formData.get("booking_id") ?? "").trim();
   if (!bookingId) {
@@ -158,9 +168,7 @@ async function updatePendingRequest(
             serviceAddress: booking.service_address,
           };
 
-          if (status === "confirmed") {
-            await sendBookingAcceptedEmailToClient(emailArgs);
-          } else {
+          if (status === "cancelled") {
             await sendBookingDeclinedEmailToClient(emailArgs);
           }
         }
@@ -180,7 +188,121 @@ async function updatePendingRequest(
 export async function acceptRequestAction(
   formData: FormData
 ): Promise<{ error: string | null }> {
-  return updatePendingRequest(formData, "confirmed");
+  const bookingId = String(formData.get("booking_id") ?? "").trim();
+  if (!bookingId) {
+    return { error: "Invalid request." };
+  }
+
+  const auth = await getAuthenticatedCleaner();
+  if (auth.error || !auth.user) {
+    return { error: auth.error ?? "Not authenticated." };
+  }
+
+  const { supabase, user } = auth;
+
+  const { data: booking, error: fetchError } = await supabase
+    .from("bookings")
+    .select(
+      "id, status, client_id, scheduled_at, duration_hours, service_address, client_requested_hours, hourly_rate_snapshot"
+    )
+    .eq("id", bookingId)
+    .eq("cleaner_id", user.id)
+    .maybeSingle();
+
+  if (fetchError) {
+    return { error: fetchError.message };
+  }
+
+  if (!booking) {
+    return { error: "Booking not found." };
+  }
+
+  if (booking.status !== "pending") {
+    return { error: "This request is no longer pending." };
+  }
+
+  const hours = parseNumericField(
+    booking.client_requested_hours ?? booking.duration_hours
+  );
+  const hourlyRate = parseNumericField(booking.hourly_rate_snapshot);
+
+  if (hours == null) {
+    return { error: "Requested hours are missing for this booking." };
+  }
+
+  if (hourlyRate == null) {
+    return { error: "Hourly rate is missing for this booking." };
+  }
+
+  const pricing = computeAcceptedBookingPricingCents(hourlyRate, hours);
+
+  const { data, error } = await supabase
+    .from("bookings")
+    .update({
+      status: "accepted_pending_payment",
+      payment_status: "unpaid",
+      cleaner_payout_cents: pricing.cleaner_payout_cents,
+      platform_fee_cents: pricing.platform_fee_cents,
+      total_price_cents: pricing.total_price_cents,
+      service_price_cents: pricing.cleaner_payout_cents,
+    } as never)
+    .eq("id", bookingId)
+    .eq("cleaner_id", user.id)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (!data) {
+    return { error: "This request is no longer pending." };
+  }
+
+  try {
+    if (booking.client_id) {
+      const { data: clientProfile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", booking.client_id)
+        .maybeSingle();
+
+      if (clientProfile?.email) {
+        const { data: cleanerProfile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (
+          booking.scheduled_at &&
+          typeof booking.duration_hours === "number" &&
+          booking.service_address
+        ) {
+          await sendBookingAcceptedEmailToClient({
+            clientEmail: clientProfile.email,
+            clientName: clientProfile.full_name,
+            cleanerName: cleanerProfile?.full_name ?? null,
+            bookingId: booking.id,
+            scheduledAt: booking.scheduled_at,
+            durationHours: booking.duration_hours,
+            serviceAddress: booking.service_address,
+          });
+        }
+      }
+    }
+  } catch (emailError) {
+    console.error(
+      "EMAIL_DEBUG: Failed to notify client of booking acceptance:",
+      emailError
+    );
+  }
+
+  revalidatePath("/cleaner/requests");
+  revalidatePath("/client/bookings");
+  revalidatePath("/cleaner/dashboard");
+  return { error: null };
 }
 
 export async function declineRequestAction(

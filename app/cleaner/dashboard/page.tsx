@@ -50,9 +50,11 @@ function formatDuration(hours: number | null): string {
 function JobCard({
   job,
   showCompletionHint,
+  awaitingPayment,
 }: {
   job: JobListing;
   showCompletionHint?: boolean;
+  awaitingPayment?: boolean;
 }) {
   const waitingForClient =
     showCompletionHint &&
@@ -61,6 +63,11 @@ function JobCard({
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+      {awaitingPayment ? (
+        <p className="mb-3 text-sm font-semibold text-orange-700">
+          Awaiting client payment
+        </p>
+      ) : null}
       <div className="flex flex-col gap-2 text-sm text-gray-700">
         <p>
           <span className="text-gray-500">Address: </span>
@@ -84,6 +91,12 @@ function JobCard({
         {waitingForClient ? (
           <p className="text-sm text-gray-500">
             Waiting for client confirmation.
+          </p>
+        ) : null}
+
+        {awaitingPayment ? (
+          <p className="text-sm text-gray-500">
+            This booking is not confirmed until the client pays.
           </p>
         ) : null}
       </div>
@@ -129,7 +142,8 @@ export default async function CleanerDashboardPage() {
   const jobSelect =
     "id, service_address, scheduled_at, duration_hours, notes, cleaner_marked_complete_at, client_marked_complete_at" as const;
 
-  const [{ data: availableJobs }, { data: myJobs }] = await Promise.all([
+  const [{ data: availableJobs }, { data: awaitingPaymentJobs }, { data: confirmedJobs }, { data: completedJobs }] =
+    await Promise.all([
     supabase
       .from("bookings")
       .select(jobSelect)
@@ -140,9 +154,30 @@ export default async function CleanerDashboardPage() {
       .from("bookings")
       .select(jobSelect)
       .eq("cleaner_id", user.id)
+      .eq("status", "accepted_pending_payment")
+      .order("scheduled_at", { ascending: true }),
+    supabase
+      .from("bookings")
+      .select(jobSelect)
+      .eq("cleaner_id", user.id)
       .eq("status", "confirmed")
+      .eq("payment_status", "paid")
+      .order("scheduled_at", { ascending: true }),
+    supabase
+      .from("bookings")
+      .select(jobSelect)
+      .eq("cleaner_id", user.id)
+      .eq("status", "completed")
       .order("scheduled_at", { ascending: true }),
   ]);
+
+  const myJobs = [...(confirmedJobs ?? []), ...(completedJobs ?? [])].sort(
+    (a, b) => {
+      const aTime = a.scheduled_at ? new Date(a.scheduled_at).getTime() : 0;
+      const bTime = b.scheduled_at ? new Date(b.scheduled_at).getTime() : 0;
+      return aTime - bTime;
+    }
+  );
 
   const welcomeName = profile.full_name ?? user.email ?? "there";
 
@@ -264,9 +299,28 @@ export default async function CleanerDashboardPage() {
 
           <section className="mt-10 flex flex-col gap-4">
             <h2 className="text-xl font-bold text-gray-900">
+              Awaiting client payment
+            </h2>
+            {!awaitingPaymentJobs?.length ? (
+              <p className="text-sm text-gray-500">
+                No bookings waiting for client payment.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-4">
+                {awaitingPaymentJobs.map((job) => (
+                  <li key={job.id}>
+                    <JobCard job={job} awaitingPayment />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="mt-10 flex flex-col gap-4">
+            <h2 className="text-xl font-bold text-gray-900">
               Your assigned jobs
             </h2>
-            {!myJobs?.length ? (
+            {!myJobs.length ? (
               <p className="text-sm text-gray-500">No assigned jobs yet.</p>
             ) : (
               <ul className="flex flex-col gap-4">

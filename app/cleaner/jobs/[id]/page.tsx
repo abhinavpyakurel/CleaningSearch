@@ -14,7 +14,8 @@ type JobPageProps = {
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
   countered: "Countered",
-  confirmed: "Confirmed",
+  accepted_pending_payment: "Awaiting client payment",
+  confirmed: "Paid and confirmed",
   in_progress: "In progress",
   completed: "Completed",
   disputed: "Disputed",
@@ -22,7 +23,11 @@ const STATUS_LABELS: Record<string, string> = {
   declined: "Declined",
 };
 
-function getStatusLabel(status: string): string {
+function getStatusLabel(status: string, paymentStatus: string): string {
+  if (status === "confirmed" && paymentStatus === "paid") {
+    return "Paid and confirmed";
+  }
+
   return STATUS_LABELS[status] ?? status;
 }
 
@@ -78,7 +83,7 @@ export default async function JobPage({ params }: JobPageProps) {
   const { data: booking, error } = await supabase
     .from("bookings")
     .select(
-      "id, service_address, scheduled_at, duration_hours, notes, status, cleaner_marked_complete_at, client_marked_complete_at, payout_status"
+      "id, service_address, scheduled_at, duration_hours, notes, status, payment_status, cleaner_marked_complete_at, client_marked_complete_at, payout_status"
     )
     .eq("id", params.id)
     .eq("cleaner_id", user.id)
@@ -92,10 +97,14 @@ export default async function JobPage({ params }: JobPageProps) {
     notFound();
   }
 
+  const isAwaitingPayment = booking.status === "accepted_pending_payment";
+  const isPaidAndConfirmed =
+    booking.status === "confirmed" && booking.payment_status === "paid";
+
   const canMarkComplete =
-    booking.status === "confirmed" && booking.cleaner_marked_complete_at == null;
+    isPaidAndConfirmed && booking.cleaner_marked_complete_at == null;
   const waitingForClient =
-    booking.status === "confirmed" &&
+    isPaidAndConfirmed &&
     booking.cleaner_marked_complete_at != null &&
     booking.client_marked_complete_at == null;
 
@@ -112,7 +121,7 @@ export default async function JobPage({ params }: JobPageProps) {
           </Link>
           <h1 className="mt-4 text-3xl font-bold text-gray-900">Job details</h1>
           <p className="mt-1 text-base text-gray-500">
-            {getStatusLabel(booking.status)}
+            {getStatusLabel(booking.status, booking.payment_status)}
           </p>
         </header>
 
@@ -159,6 +168,28 @@ export default async function JobPage({ params }: JobPageProps) {
             ) : null}
 
             <div className="mt-6 flex flex-col gap-2">
+              {isAwaitingPayment ? (
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-orange-700">
+                    Awaiting client payment
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    This booking is not confirmed until the client pays.
+                  </p>
+                </div>
+              ) : null}
+
+              {isPaidAndConfirmed ? (
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-green-700">
+                    Paid and confirmed
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Payout locked until both sides confirm completion.
+                  </p>
+                </div>
+              ) : null}
+
               {canMarkComplete ? (
                 <MarkJobCompleteForm bookingId={booking.id} />
               ) : null}
