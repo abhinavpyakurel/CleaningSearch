@@ -97,6 +97,8 @@ export type Database = {
           special_requests: string | null
           square_feet_range: string | null
           status: string
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
           supplies_needed: boolean | null
           total_price: number | null
           total_price_cents: number | null
@@ -159,6 +161,8 @@ export type Database = {
           special_requests?: string | null
           square_feet_range?: string | null
           status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
           supplies_needed?: boolean | null
           total_price?: number | null
           total_price_cents?: number | null
@@ -221,6 +225,8 @@ export type Database = {
           special_requests?: string | null
           square_feet_range?: string | null
           status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
           supplies_needed?: boolean | null
           total_price?: number | null
           total_price_cents?: number | null

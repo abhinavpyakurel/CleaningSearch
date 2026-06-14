@@ -6,7 +6,7 @@ import { CancelBookingForm } from "@/app/client/bookings/cancel-booking-form";
 import { CounterResponseForm } from "@/app/client/bookings/counter-response-form";
 import { MarkCompleteForm } from "@/app/client/bookings/mark-complete-form";
 import { ReviewBookingForm } from "@/app/client/bookings/review-booking-form";
-import { SimulatePaymentForm } from "@/app/client/bookings/simulate-payment-form";
+import { PayNowForm } from "@/app/client/bookings/pay-now-form";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 import { formatUsdFromCents } from "@/lib/booking-price";
@@ -271,7 +271,7 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
               <span>{totalPrice}</span>
             </div>
           </div>
-          <SimulatePaymentForm bookingId={booking.id} />
+          <PayNowForm bookingId={booking.id} />
         </section>
       ) : null}
 
@@ -312,7 +312,39 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
   );
 }
 
-export default async function BookingsPage() {
+type BookingsPageProps = {
+  searchParams?: { payment?: string };
+};
+
+function PaymentBanner({ payment }: { payment?: string }) {
+  if (payment === "success") {
+    return (
+      <div
+        className="mx-auto mb-6 max-w-4xl rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"
+        role="status"
+      >
+        Payment received. Your booking will show as confirmed once Stripe
+        finishes processing.
+      </div>
+    );
+  }
+
+  if (payment === "cancelled") {
+    return (
+      <div
+        className="mx-auto mb-6 max-w-4xl rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+        role="status"
+      >
+        Checkout was cancelled. You can pay anytime from this page to confirm
+        your booking.
+      </div>
+    );
+  }
+
+  return null;
+}
+
+export default async function BookingsPage({ searchParams }: BookingsPageProps) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -417,6 +449,10 @@ export default async function BookingsPage() {
             Your scheduled and past cleanings
           </p>
         </header>
+
+        <div className="px-6">
+          <PaymentBanner payment={searchParams?.payment} />
+        </div>
 
         {list.length === 0 ? (
           <section className="mx-auto max-w-4xl px-6 py-24 text-center">

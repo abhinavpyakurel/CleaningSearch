@@ -286,54 +286,6 @@ export async function acceptCounterOfferAction(
   return { error: null };
 }
 
-export async function simulatePaymentSuccessAction(
-  formData: FormData
-): Promise<{ error: string | null }> {
-  const bookingId = String(formData.get("booking_id") ?? "").trim();
-  if (!bookingId) {
-    return { error: "Invalid booking." };
-  }
-
-  const auth = await getAuthenticatedClient();
-  if (auth.error || !auth.user) {
-    return { error: auth.error ?? "Not authenticated." };
-  }
-
-  const { supabase, user } = auth;
-
-  const nowIso = new Date().toISOString();
-
-  const { data: updated, error: updateError } = await supabase
-    .from("bookings")
-    .update({
-      payment_status: "paid",
-      paid_at: nowIso,
-      status: "confirmed",
-      payout_status: "locked",
-    } as never)
-    .eq("id", bookingId)
-    .eq("client_id", user.id)
-    .eq("status", "accepted_pending_payment")
-    .eq("payment_status", "unpaid")
-    .select("id, cleaner_id")
-    .maybeSingle();
-
-  if (updateError) {
-    return { error: updateError.message };
-  }
-
-  if (!updated) {
-    return { error: "Payment could not be processed for this booking." };
-  }
-
-  revalidatePath("/client/bookings");
-  revalidatePath("/cleaner/dashboard");
-  if (updated.cleaner_id) {
-    revalidatePath(`/cleaner/jobs/${bookingId}`);
-  }
-  return { error: null };
-}
-
 export async function declineCounterOfferAction(
   _prevState: CounterResponseActionState,
   formData: FormData
