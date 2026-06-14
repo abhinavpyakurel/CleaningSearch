@@ -10,7 +10,7 @@ import { PayNowForm } from "@/app/client/bookings/pay-now-form";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 import { formatUsdFromCents } from "@/lib/booking-price";
-import { hasCompletionStarted } from "@/lib/booking-completion";
+import { getClientCancellationUi } from "@/lib/booking-cancellation";
 import { parseCounterAdjustments } from "@/lib/counter-offer";
 import type { Json } from "@/lib/database.types";
 
@@ -128,20 +128,13 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
 
   const showCleaner =
     booking.cleaner_id != null && booking.cleaner_name != null;
-  const completionStarted = hasCompletionStarted(booking);
+  const cancellationUi = getClientCancellationUi(booking);
   const canConfirmComplete =
     booking.status === "confirmed" &&
     booking.payment_status === "paid" &&
     booking.client_marked_complete_at == null;
   const canReview =
     booking.status === "completed" && !booking.has_review;
-  const canCancel =
-    booking.status === "pending" ||
-    (booking.status === "accepted_pending_payment" &&
-      booking.payment_status === "unpaid") ||
-    (booking.status === "confirmed" && !completionStarted);
-  const cancelDisabled =
-    booking.status === "confirmed" && completionStarted;
   const needsPayment =
     booking.status === "accepted_pending_payment" &&
     booking.payment_status === "unpaid";
@@ -276,10 +269,6 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
       ) : null}
 
       <div className="mt-4 flex flex-col gap-2">
-        {booking.status === "confirmed" && booking.payment_status === "paid" ? (
-          <p className="text-sm font-medium text-green-700">Paid and confirmed</p>
-        ) : null}
-
         {canConfirmComplete ? <MarkCompleteForm bookingId={booking.id} /> : null}
 
         {booking.status === "confirmed" &&
@@ -290,14 +279,10 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
           </p>
         ) : null}
 
-        {canCancel ? (
+        {cancellationUi.canCancel ? (
           <CancelBookingForm bookingId={booking.id} />
-        ) : cancelDisabled ? (
-          <CancelBookingForm
-            bookingId={booking.id}
-            disabled
-            disabledReason="Cannot cancel after completion has been started."
-          />
+        ) : cancellationUi.policyMessage ? (
+          <p className="text-sm text-gray-500">{cancellationUi.policyMessage}</p>
         ) : null}
 
         {canReview ? <ReviewBookingForm bookingId={booking.id} /> : null}
@@ -398,11 +383,11 @@ export default async function BookingsPage({ searchParams }: BookingsPageProps) 
   }
 
   const cleanerIds = [
-    ...new Set(
+    ...Array.from(new Set(
       rows
         .map((b) => b.cleaner_id)
         .filter((id): id is string => id != null)
-    ),
+    )),
   ];
 
   const cleanerNameById = new Map<string, string>();

@@ -36,9 +36,12 @@ async function getAuthenticatedClient() {
   return { supabase, user, error: null };
 }
 
+export type MarkCompleteActionState = { error: string | null };
+
 export async function markBookingCompletedAction(
+  _prevState: MarkCompleteActionState,
   formData: FormData
-): Promise<{ error: string | null }> {
+): Promise<MarkCompleteActionState> {
   const bookingId = String(formData.get("booking_id") ?? "").trim();
   if (!bookingId) {
     return { error: "Invalid booking." };
@@ -54,7 +57,7 @@ export async function markBookingCompletedAction(
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
     .select(
-      "id, client_id, cleaner_id, status, cleaner_marked_complete_at, client_marked_complete_at"
+      "id, client_id, cleaner_id, status, payment_status, cleaner_marked_complete_at, client_marked_complete_at"
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -75,6 +78,10 @@ export async function markBookingCompletedAction(
     return { error: "This booking cannot be marked completed." };
   }
 
+  if (booking.payment_status !== "paid") {
+    return { error: "Payment must be completed before confirming the job." };
+  }
+
   if (booking.client_marked_complete_at != null) {
     return { error: "You have already confirmed completion." };
   }
@@ -88,6 +95,7 @@ export async function markBookingCompletedAction(
     .eq("id", bookingId)
     .eq("client_id", user.id)
     .eq("status", "confirmed")
+    .eq("payment_status", "paid")
     .is("client_marked_complete_at", null)
     .select("id")
     .maybeSingle();
@@ -168,7 +176,7 @@ export async function cancelBookingAction(
       booking.client_marked_complete_at != null
     ) {
       return {
-        error: "Cannot cancel after completion has been started.",
+        error: "Cannnot cancel after completion has been started.",
       };
     }
 
