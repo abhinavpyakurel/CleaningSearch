@@ -264,20 +264,20 @@ export default async function CleanerDashboardPage() {
             <div className="mt-6 flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-8 shadow-sm sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">
-                  Job availability
+                  Profile visibility
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Let clients know whether you are open to new bookings.
+                  Determine whether clients can see your profile and book you for jobs.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 {cleanerProfile.is_available ? (
                   <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
-                    ● Available for jobs
+                    ● Visible to clients
                   </span>
                 ) : (
                   <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-600">
-                    ○ Not available
+                    ○ Not visible to clients
                   </span>
                 )}
                 <form action={toggleCleanerAvailability}>
@@ -290,8 +290,8 @@ export default async function CleanerDashboardPage() {
                     }
                   >
                     {cleanerProfile.is_available
-                      ? "Go unavailable"
-                      : "Go available"}
+                      ? "Go invisible to clients"
+                      : "Go visible to clients"}
                   </button>
                 </form>
               </div>
