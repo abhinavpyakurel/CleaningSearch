@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import type { Tables } from "@/lib/database.types";
+import { formatAvailabilitySummary } from "@/lib/cleaner-availability";
 import { isCleanerPubliclyVisible } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { buildReviewStatsByReviewee } from "@/lib/reviews/stats";
@@ -147,6 +148,20 @@ export default async function CleanerProfilePage({
     created_at: r.created_at,
   }));
 
+  const { data: availabilityRows, error: availabilityError } = await supabase
+    .from("cleaner_availability_windows")
+    .select("day_of_week, start_time, end_time")
+    .eq("cleaner_id", params.cleanerId)
+    .order("day_of_week", { ascending: true });
+
+  if (availabilityError) {
+    throw new Error(availabilityError.message);
+  }
+
+  const availabilitySummary = formatAvailabilitySummary(availabilityRows ?? []);
+  const hasAvailability = (availabilityRows ?? []).length > 0;
+  const canBook = detail.is_available && hasAvailability;
+
   return (
     <>
       <SiteHeader />
@@ -185,13 +200,28 @@ export default async function CleanerProfilePage({
                 {detail.bio}
               </p>
             ) : null}
-            {detail.is_available ? (
+            <div className="mt-4">
+              {hasAvailability ? (
+                <p className="text-sm font-medium text-gray-700">
+                  {availabilitySummary}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  This cleaner has not added availability yet.
+                </p>
+              )}
+            </div>
+            {canBook ? (
               <Link
                 href={`/client/book?cleaner_id=${encodeURIComponent(detail.user_id)}`}
                 className="mt-6 inline-block rounded-xl bg-[#00695C] px-6 py-3 font-semibold text-white transition-all hover:bg-[#004D40]"
               >
                 Book this cleaner
               </Link>
+            ) : detail.is_available ? (
+              <p className="mt-6 text-sm text-gray-500">
+                Booking unavailable until this cleaner adds availability.
+              </p>
             ) : (
               <p className="mt-6 text-sm text-gray-500">Currently unavailable</p>
             )}

@@ -38,6 +38,14 @@ import {
   type SquareFeetRange,
   type VisitType,
 } from "@/lib/intake-estimate";
+import {
+  ACTIVE_BOOKING_STATUSES,
+  AVAILABILITY_OUTSIDE_WINDOW_ERROR,
+  BOOKING_OVERLAP_ERROR,
+  buildScheduledAtIso,
+  findOverlappingBooking,
+  isWithinAvailabilityWindow,
+} from "@/lib/cleaner-availability";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/database.types";
 
@@ -315,10 +323,8 @@ export async function createBookingAction(
     return { error: "Date and time are required." };
   }
 
-  let scheduled_at: string;
-  try {
-    scheduled_at = new Date(`${date}T${time}:00`).toISOString();
-  } catch {
+  const scheduled_at = buildScheduledAtIso(date, time);
+  if (!scheduled_at) {
     return { error: "Enter a valid date and time." };
   }
 
@@ -367,6 +373,59 @@ export async function createBookingAction(
 
   if (!profile || profile.role !== "client") {
     redirect("/cleaner/dashboard");
+  }
+
+  if (!cleanerId) {
+    return { error: "A cleaner is required for this booking." };
+  }
+
+  const { data: availabilityWindows, error: availabilityError } = await supabase
+    .from("cleaner_availability_windows")
+    .select("day_of_week, start_time, end_time")
+    .eq("cleaner_id", cleanerId);
+
+  if (availabilityError) {
+    return { error: availabilityError.message };
+  }
+
+  if (!availabilityWindows?.length) {
+    return {
+      error:
+        "This cleaner has not added availability yet. Choose another time or cleaner.",
+    };
+  }
+
+  if (
+    !isWithinAvailabilityWindow(
+      availabilityWindows,
+      date,
+      time,
+      clientRequestedHours
+    )
+  ) {
+    return { error: AVAILABILITY_OUTSIDE_WINDOW_ERROR };
+  }
+
+  const { data: activeBookings, error: activeBookingsError } = await supabase
+    .from("bookings")
+    .select("id, scheduled_at, duration_hours, client_requested_hours, status")
+    .eq("cleaner_id", cleanerId)
+    .in("status", [...ACTIVE_BOOKING_STATUSES])
+    .not("scheduled_at", "is", null)
+    .gt("scheduled_at", new Date().toISOString());
+
+  if (activeBookingsError) {
+    return { error: activeBookingsError.message };
+  }
+
+  if (
+    findOverlappingBooking(
+      activeBookings ?? [],
+      scheduled_at,
+      clientRequestedHours
+    )
+  ) {
+    return { error: BOOKING_OVERLAP_ERROR };
   }
 
   let base_price: number | null = null;

@@ -4,6 +4,7 @@ import { CornerLeftDown } from "lucide-react";
 import {
   toggleCleanerAvailability,
 } from "@/app/cleaner/dashboard/actions";
+import { AvailabilityEditor } from "@/app/cleaner/dashboard/availability-editor";
 import { CleanerStatsCard } from "@/app/cleaner/dashboard/cleaner-stats-card";
 import { PayoutSetupCard } from "@/app/cleaner/dashboard/payout-setup-card";
 import { createClient } from "@/lib/supabase/server";
@@ -154,6 +155,12 @@ export default async function CleanerDashboardPage() {
     .eq("user_id", user.id)
     .maybeSingle();
 
+  const { data: availabilityWindows } = await supabase
+    .from("cleaner_availability_windows")
+    .select("day_of_week, start_time, end_time")
+    .eq("cleaner_id", user.id)
+    .order("day_of_week", { ascending: true });
+
   const jobSelect =
     "id, service_address, scheduled_at, duration_hours, notes, cleaner_marked_complete_at, client_marked_complete_at" as const;
 
@@ -296,6 +303,22 @@ export default async function CleanerDashboardPage() {
                 </form>
               </div>
             </div>
+          ) : null}
+
+          {cleanerProfile ? (
+            <section className="mt-6 rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
+              <h2 className="text-xl font-bold text-gray-900">
+                Weekly availability
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Set when clients can request bookings. One time window per day.
+              </p>
+              <div className="mt-6">
+                <AvailabilityEditor
+                  initialWindows={availabilityWindows ?? []}
+                />
+              </div>
+            </section>
           ) : null}
 
           <section className="mt-10 flex flex-col gap-4">

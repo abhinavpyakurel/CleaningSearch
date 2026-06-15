@@ -64,6 +64,11 @@ import {
   uploadBookingPhotosForBooking,
   validateBookingPhotoFile,
 } from "@/lib/booking-photos";
+import {
+  AVAILABILITY_OUTSIDE_WINDOW_ERROR,
+  type CleanerAvailabilityWindow,
+  isWithinAvailabilityWindow,
+} from "@/lib/cleaner-availability";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -324,12 +329,14 @@ type BookFormProps = {
   cleanerId: string;
   cleanerName: string;
   hourlyRate: number | null;
+  availabilityWindows: CleanerAvailabilityWindow[];
 };
 
 export function BookForm({
   cleanerId,
   cleanerName,
   hourlyRate,
+  availabilityWindows,
 }: BookFormProps) {
   const router = useRouter();
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -380,6 +387,9 @@ export function BookForm({
   const [serviceAddress, setServiceAddress] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
+  const [availabilityError, setAvailabilityError] = useState<string | null>(
+    null
+  );
 
   const squareFeetRange: SquareFeetRange = uiSquareFeetToRange(uiSquareFeet);
   const lastCleaned: LastCleaned = uiLastCleanedToValue(uiLastCleaned);
@@ -766,6 +776,52 @@ export function BookForm({
     return null;
   }
 
+  useEffect(() => {
+    if (!date || !time) {
+      setAvailabilityError(null);
+      return;
+    }
+
+    const duration =
+      requestedHours != null && requestedHours > 0 ? requestedHours : 2;
+
+    if (
+      !isWithinAvailabilityWindow(
+        availabilityWindows,
+        date,
+        time,
+        duration
+      )
+    ) {
+      setAvailabilityError(AVAILABILITY_OUTSIDE_WINDOW_ERROR);
+      return;
+    }
+
+    setAvailabilityError(null);
+  }, [availabilityWindows, date, time, requestedHours]);
+
+  function validateAvailability(): string | null {
+    if (!date || !time) {
+      return null;
+    }
+
+    const duration =
+      requestedHours != null && requestedHours > 0 ? requestedHours : 2;
+
+    if (
+      !isWithinAvailabilityWindow(
+        availabilityWindows,
+        date,
+        time,
+        duration
+      )
+    ) {
+      return AVAILABILITY_OUTSIDE_WINDOW_ERROR;
+    }
+
+    return null;
+  }
+
   function validateStep3(): string | null {
     const step2Error = validateStep2();
     if (step2Error) {
@@ -776,6 +832,10 @@ export function BookForm({
     }
     if (!date || !time) {
       return "Date and time are required.";
+    }
+    const availabilityIssue = validateAvailability();
+    if (availabilityIssue) {
+      return availabilityIssue;
     }
     return null;
   }
@@ -1588,6 +1648,11 @@ export function BookForm({
                     />
                   </div>
                 </div>
+                {availabilityError ? (
+                  <p role="alert" className="text-sm text-destructive">
+                    {availabilityError}
+                  </p>
+                ) : null}
               </section>
 
               {specialRequests ? (

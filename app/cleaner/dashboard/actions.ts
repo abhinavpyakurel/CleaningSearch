@@ -4,6 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import {
+  dayStatesToWindows,
+  DAY_LABELS,
+  normalizeTimeToMinutes,
+  type DayAvailabilityState,
+} from "@/lib/cleaner-availability";
+import {
   createAccountOnboardingLink,
   createExpressConnectedAccount,
   fetchCleanerStripeStatus,
@@ -17,6 +23,112 @@ export type UpdateCleanerProfileState = {
   error?: string;
   success?: boolean;
 };
+
+export type SaveCleanerAvailabilityState = {
+  error?: string;
+  success?: boolean;
+};
+
+function parseAvailabilityFromFormData(
+  formData: FormData
+): { windows: ReturnType<typeof dayStatesToWindows> } | { error: string } {
+  const dayStates: DayAvailabilityState[] = DAY_LABELS.map((_, dayOfWeek) => {
+    const enabled =
+      String(formData.get(`day_${dayOfWeek}_enabled`) ?? "").toLowerCase() ===
+      "true";
+    const startTime = String(formData.get(`day_${dayOfWeek}_start`) ?? "").trim();
+    const endTime = String(formData.get(`day_${dayOfWeek}_end`) ?? "").trim();
+
+    return {
+      enabled,
+      startTime: startTime || "09:00",
+      endTime: endTime || "17:00",
+    };
+  });
+
+  for (const [index, day] of dayStates.entries()) {
+    if (!day.enabled) {
+      continue;
+    }
+
+    const startMinutes = normalizeTimeToMinutes(day.startTime);
+    const endMinutes = normalizeTimeToMinutes(day.endTime);
+    if (startMinutes == null || endMinutes == null) {
+      return {
+        error: `${DAY_LABELS[index]} has an invalid time.`,
+      };
+    }
+
+    if (endMinutes <= startMinutes) {
+      return {
+        error: `${DAY_LABELS[index]} end time must be after the start time.`,
+      };
+    }
+  }
+
+  return { windows: dayStatesToWindows(dayStates) };
+}
+
+export async function saveCleanerAvailabilityAction(
+  _prevState: SaveCleanerAvailabilityState,
+  formData: FormData
+): Promise<SaveCleanerAvailabilityState> {
+  const parsed = parseAvailabilityFromFormData(formData);
+  if ("error" in parsed) {
+    return { error: parsed.error };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated." };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile || profile.role !== "cleaner") {
+    return { error: "Only cleaners can update availability." };
+  }
+
+  const { error: deleteError } = await supabase
+    .from("cleaner_availability_windows")
+    .delete()
+    .eq("cleaner_id", user.id);
+
+  if (deleteError) {
+    return { error: deleteError.message };
+  }
+
+  if (parsed.windows.length > 0) {
+    const rows = parsed.windows.map((window) => ({
+      cleaner_id: user.id,
+      day_of_week: window.day_of_week,
+      start_time: window.start_time,
+      end_time: window.end_time,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error: insertError } = await supabase
+      .from("cleaner_availability_windows")
+      .insert(rows);
+
+    if (insertError) {
+      return { error: insertError.message };
+    }
+  }
+
+  revalidatePath("/cleaner/dashboard");
+  revalidatePath("/client/cleaners");
+  revalidatePath(`/client/cleaners/${user.id}`);
+  return { success: true };
+}
 
 function parseRequiredPositiveNumber(
   value: FormDataEntryValue | null,
