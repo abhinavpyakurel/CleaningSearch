@@ -51,9 +51,9 @@ export function hasCompletionStarted(booking: CompletionBookingFields): boolean 
 
 const PAYOUT_STATUS_LABELS: Record<string, string> = {
   locked: "Locked",
-  ready: "Ready",
-  paid: "Paid",
-  paused: "Paused",
+  ready: "Payout eligible",
+  paid: "Paid out",
+  paused: "Payout paused",
 };
 
 export function getPayoutStatusLabel(status: string): string {

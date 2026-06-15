@@ -3,8 +3,10 @@ import { notFound, redirect } from "next/navigation";
 import { Calendar, Clock, MapPin } from "lucide-react";
 
 import { MarkJobCompleteForm } from "@/app/cleaner/jobs/[id]/mark-complete-form";
+import { ReleasePayoutForm } from "@/app/cleaner/jobs/[id]/release-payout-form";
 import { SiteHeader } from "@/components/site-header";
 import { getPayoutStatusLabel } from "@/lib/booking-completion";
+import { formatUsdFromCents } from "@/lib/booking-price";
 import { createClient } from "@/lib/supabase/server";
 
 type JobPageProps = {
@@ -83,7 +85,7 @@ export default async function JobPage({ params }: JobPageProps) {
   const { data: booking, error } = await supabase
     .from("bookings")
     .select(
-      "id, service_address, scheduled_at, duration_hours, notes, status, payment_status, cleaner_marked_complete_at, client_marked_complete_at, payout_status"
+      "id, service_address, scheduled_at, duration_hours, notes, status, payment_status, cleaner_marked_complete_at, client_marked_complete_at, payout_status, cleaner_payout_cents, stripe_transfer_id, paid_out_at"
     )
     .eq("id", params.id)
     .eq("cleaner_id", user.id)
@@ -107,6 +109,10 @@ export default async function JobPage({ params }: JobPageProps) {
     isPaidAndConfirmed &&
     booking.cleaner_marked_complete_at != null &&
     booking.client_marked_complete_at == null;
+
+  const isPayoutReady =
+    booking.status === "completed" && booking.payout_status === "ready";
+  const isPayoutPaid = booking.payout_status === "paid";
 
   return (
     <>
@@ -203,9 +209,36 @@ export default async function JobPage({ params }: JobPageProps) {
               {booking.status === "completed" ? (
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-green-700">Completed</p>
-                  <p className="text-sm text-gray-600">
-                    Payout status: {getPayoutStatusLabel(booking.payout_status)}
-                  </p>
+                  {isPayoutReady ? (
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold text-[#00695C]">
+                        Payout eligible
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Your payout:{" "}
+                        {formatUsdFromCents(booking.cleaner_payout_cents)}
+                      </p>
+                      <ReleasePayoutForm bookingId={booking.id} />
+                    </div>
+                  ) : isPayoutPaid ? (
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-green-700">
+                        Paid out
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        This payout has been released to your Stripe account.
+                      </p>
+                      {booking.stripe_transfer_id ? (
+                        <p className="text-xs text-gray-400">
+                          Transfer: {booking.stripe_transfer_id}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-600">
+                      Payout status: {getPayoutStatusLabel(booking.payout_status)}
+                    </p>
+                  )}
                 </div>
               ) : null}
             </div>

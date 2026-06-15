@@ -7,6 +7,7 @@ import {
 import { CleanerStatsCard } from "@/app/cleaner/dashboard/cleaner-stats-card";
 import { PayoutSetupCard } from "@/app/cleaner/dashboard/payout-setup-card";
 import { createClient } from "@/lib/supabase/server";
+import { getPayoutStatusLabel } from "@/lib/booking-completion";
 import { SiteHeader } from "@/components/site-header";
 
 type JobListing = {
@@ -15,6 +16,8 @@ type JobListing = {
   scheduled_at: string | null;
   duration_hours: number | null;
   notes: string | null;
+  status?: string;
+  payout_status?: string | null;
   cleaner_marked_complete_at?: string | null;
   client_marked_complete_at?: string | null;
 };
@@ -62,6 +65,11 @@ function JobCard({
     job.cleaner_marked_complete_at != null &&
     job.client_marked_complete_at == null;
 
+  const showPayoutLabel =
+    job.status === "completed" &&
+    job.payout_status != null &&
+    ["ready", "paid", "paused"].includes(job.payout_status);
+
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
       {awaitingPayment ? (
@@ -98,6 +106,12 @@ function JobCard({
         {awaitingPayment ? (
           <p className="text-sm text-gray-500">
             This booking is not confirmed until the client pays.
+          </p>
+        ) : null}
+
+        {showPayoutLabel ? (
+          <p className="text-sm font-semibold text-[#00695C]">
+            {getPayoutStatusLabel(job.payout_status!)}
           </p>
         ) : null}
       </div>
@@ -143,6 +157,9 @@ export default async function CleanerDashboardPage() {
   const jobSelect =
     "id, service_address, scheduled_at, duration_hours, notes, cleaner_marked_complete_at, client_marked_complete_at" as const;
 
+  const completedJobSelect =
+    "id, service_address, scheduled_at, duration_hours, notes, status, payout_status, cleaner_marked_complete_at, client_marked_complete_at" as const;
+
   const [{ data: availableJobs }, { data: awaitingPaymentJobs }, { data: confirmedJobs }, { data: completedJobs }] =
     await Promise.all([
     supabase
@@ -166,7 +183,7 @@ export default async function CleanerDashboardPage() {
       .order("scheduled_at", { ascending: true }),
     supabase
       .from("bookings")
-      .select(jobSelect)
+      .select(completedJobSelect)
       .eq("cleaner_id", user.id)
       .eq("status", "completed")
       .order("scheduled_at", { ascending: true }),

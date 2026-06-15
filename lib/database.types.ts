@@ -83,6 +83,7 @@ export type Database = {
           minimum_hours: number | null
           notes: string | null
           paid_at: string | null
+          paid_out_at: string | null
           payment_status: string
           pet_hair_level: string | null
           payout_status: string
@@ -99,6 +100,7 @@ export type Database = {
           status: string
           stripe_checkout_session_id: string | null
           stripe_payment_intent_id: string | null
+          stripe_transfer_id: string | null
           supplies_needed: boolean | null
           total_price: number | null
           total_price_cents: number | null
@@ -147,6 +149,7 @@ export type Database = {
           minimum_hours?: number | null
           notes?: string | null
           paid_at?: string | null
+          paid_out_at?: string | null
           payment_status?: string
           pet_hair_level?: string | null
           payout_status?: string
@@ -163,6 +166,7 @@ export type Database = {
           status?: string
           stripe_checkout_session_id?: string | null
           stripe_payment_intent_id?: string | null
+          stripe_transfer_id?: string | null
           supplies_needed?: boolean | null
           total_price?: number | null
           total_price_cents?: number | null
@@ -211,6 +215,7 @@ export type Database = {
           minimum_hours?: number | null
           notes?: string | null
           paid_at?: string | null
+          paid_out_at?: string | null
           payment_status?: string
           pet_hair_level?: string | null
           payout_status?: string
@@ -227,6 +232,7 @@ export type Database = {
           status?: string
           stripe_checkout_session_id?: string | null
           stripe_payment_intent_id?: string | null
+          stripe_transfer_id?: string | null
           supplies_needed?: boolean | null
           total_price?: number | null
           total_price_cents?: number | null
