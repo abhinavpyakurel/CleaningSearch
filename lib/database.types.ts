@@ -296,7 +296,11 @@ export type Database = {
           profile_photo_url: string | null
           service_radius_miles: number | null
           stripe_account_id: string | null
+          stripe_charges_enabled: boolean
+          stripe_details_submitted: boolean
           stripe_onboarded: boolean
+          stripe_onboarding_complete: boolean
+          stripe_payouts_enabled: boolean
           total_jobs: number
           user_id: string
           years_experience: number | null
@@ -312,7 +316,11 @@ export type Database = {
           profile_photo_url?: string | null
           service_radius_miles?: number | null
           stripe_account_id?: string | null
+          stripe_charges_enabled?: boolean
+          stripe_details_submitted?: boolean
           stripe_onboarded?: boolean
+          stripe_onboarding_complete?: boolean
+          stripe_payouts_enabled?: boolean
           total_jobs?: number
           user_id: string
           years_experience?: number | null
@@ -328,7 +336,11 @@ export type Database = {
           profile_photo_url?: string | null
           service_radius_miles?: number | null
           stripe_account_id?: string | null
+          stripe_charges_enabled?: boolean
+          stripe_details_submitted?: boolean
           stripe_onboarded?: boolean
+          stripe_onboarding_complete?: boolean
+          stripe_payouts_enabled?: boolean
           total_jobs?: number
           user_id?: string
           years_experience?: number | null

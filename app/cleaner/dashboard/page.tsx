@@ -5,6 +5,7 @@ import {
   toggleCleanerAvailability,
 } from "@/app/cleaner/dashboard/actions";
 import { CleanerStatsCard } from "@/app/cleaner/dashboard/cleaner-stats-card";
+import { PayoutSetupCard } from "@/app/cleaner/dashboard/payout-setup-card";
 import { createClient } from "@/lib/supabase/server";
 import { SiteHeader } from "@/components/site-header";
 
@@ -134,7 +135,7 @@ export default async function CleanerDashboardPage() {
   const { data: cleanerProfile } = await supabase
     .from("cleaner_profiles")
     .select(
-      "hourly_rate, service_radius_miles, bio, total_jobs, avg_rating, is_available"
+      "hourly_rate, service_radius_miles, bio, total_jobs, avg_rating, is_available, stripe_account_id, stripe_payouts_enabled"
     )
     .eq("user_id", user.id)
     .maybeSingle();
@@ -315,6 +316,15 @@ export default async function CleanerDashboardPage() {
               </ul>
             )}
           </section>
+
+          {cleanerProfile ? (
+            <section className="mt-10">
+              <PayoutSetupCard
+                stripeAccountId={cleanerProfile.stripe_account_id}
+                stripePayoutsEnabled={cleanerProfile.stripe_payouts_enabled}
+              />
+            </section>
+          ) : null}
 
           <section className="mt-10 flex flex-col gap-4">
             <h2 className="text-xl font-bold text-gray-900">

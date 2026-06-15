@@ -1,7 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
+import {
+  createAccountOnboardingLink,
+  createExpressConnectedAccount,
+  fetchCleanerStripeStatus,
+  type CleanerStripeStatus,
+} from "@/lib/stripe/connect";
 import { createClient } from "@/lib/supabase/server";
 
 const BIO_MAX_LENGTH = 300;
@@ -186,4 +193,131 @@ export async function acceptJobAction(
 
   revalidatePath("/cleaner/dashboard");
   return { error: null };
+}
+
+async function requireCleanerWithProfile(): Promise<
+  | { error: "unauthenticated" }
+  | { error: "forbidden" }
+  | { error: "no_profile" }
+  | {
+      user: { id: string; email?: string };
+      cleanerProfile: {
+        stripe_account_id: string | null;
+      };
+    }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "unauthenticated" };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profile || profile.role !== "cleaner") {
+    return { error: "forbidden" };
+  }
+
+  const { data: cleanerProfile } = await supabase
+    .from("cleaner_profiles")
+    .select("stripe_account_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!cleanerProfile) {
+    return { error: "no_profile" };
+  }
+
+  return { user, cleanerProfile };
+}
+
+export async function syncCleanerStripeStatus(
+  userId: string,
+  accountId: string
+): Promise<CleanerStripeStatus | null> {
+  const supabase = await createClient();
+  const status = await fetchCleanerStripeStatus(accountId);
+
+  const { error } = await supabase
+    .from("cleaner_profiles")
+    .update(status)
+    .eq("user_id", userId)
+    .eq("stripe_account_id", accountId);
+
+  if (error) {
+    return null;
+  }
+
+  revalidatePath("/cleaner/dashboard");
+  return status;
+}
+
+async function redirectToPayoutOnboarding(
+  userId: string,
+  email: string | null | undefined,
+  existingAccountId: string | null
+): Promise<never> {
+  const supabase = await createClient();
+  let accountId = existingAccountId;
+
+  if (!accountId) {
+    const account = await createExpressConnectedAccount(email);
+    accountId = account.id;
+
+    const { error } = await supabase
+      .from("cleaner_profiles")
+      .update({ stripe_account_id: accountId })
+      .eq("user_id", userId);
+
+    if (error) {
+      redirect("/cleaner/dashboard?payout_error=save_failed");
+    }
+  }
+
+  const onboardingUrl = await createAccountOnboardingLink(accountId);
+  redirect(onboardingUrl);
+}
+
+export async function startPayoutSetupAction(): Promise<void> {
+  const result = await requireCleanerWithProfile();
+
+  if ("error" in result) {
+    if (result.error === "unauthenticated") {
+      redirect("/login");
+    }
+    redirect("/client/home");
+  }
+
+  await redirectToPayoutOnboarding(
+    result.user.id,
+    result.user.email,
+    result.cleanerProfile.stripe_account_id
+  );
+}
+
+export async function refreshPayoutSetupAction(): Promise<void> {
+  const result = await requireCleanerWithProfile();
+
+  if ("error" in result) {
+    if (result.error === "unauthenticated") {
+      redirect("/login");
+    }
+    redirect("/client/home");
+  }
+
+  if (!result.cleanerProfile.stripe_account_id) {
+    redirect("/cleaner/dashboard");
+  }
+
+  const onboardingUrl = await createAccountOnboardingLink(
+    result.cleanerProfile.stripe_account_id
+  );
+  redirect(onboardingUrl);
 }
