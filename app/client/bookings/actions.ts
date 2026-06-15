@@ -7,6 +7,8 @@ import {
   parseScopeSnapshot,
 } from "@/lib/counter-offer";
 import { buildCompletionUpdate } from "@/lib/booking-completion";
+import { createBookingRefund } from "@/lib/stripe/refund";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 async function getAuthenticatedClient() {
@@ -118,6 +120,114 @@ export type CancelBookingState = { error: string | null };
 
 const CANCELLATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+function getScheduledTimeMs(scheduledAt: string | null): number | null {
+  if (!scheduledAt) {
+    return null;
+  }
+
+  const scheduledTime = new Date(scheduledAt).getTime();
+  if (Number.isNaN(scheduledTime)) {
+    return null;
+  }
+
+  return scheduledTime;
+}
+
+function isMoreThan24HoursBeforeScheduled(scheduledAt: string | null): boolean {
+  const scheduledTime = getScheduledTimeMs(scheduledAt);
+  if (scheduledTime == null) {
+    return false;
+  }
+
+  return scheduledTime - Date.now() > CANCELLATION_WINDOW_MS;
+}
+
+type CancelBookingRow = {
+  id: string;
+  client_id: string;
+  status: string;
+  payment_status: string;
+  payout_status: string;
+  scheduled_at: string | null;
+  stripe_payment_intent_id: string | null;
+  stripe_refund_id: string | null;
+  cleaner_marked_complete_at: string | null;
+  client_marked_complete_at: string | null;
+};
+
+function isPaidRefundEligible(booking: CancelBookingRow): string | null {
+  if (
+    booking.stripe_refund_id != null ||
+    booking.payment_status === "refunded"
+  ) {
+    return "This booking has already been refunded.";
+  }
+
+  if (booking.status !== "confirmed" || booking.payment_status !== "paid") {
+    return null;
+  }
+
+  if (
+    booking.cleaner_marked_complete_at != null ||
+    booking.client_marked_complete_at != null
+  ) {
+    return "Cannot cancel after completion has started.";
+  }
+
+  const scheduledTime = getScheduledTimeMs(booking.scheduled_at);
+  if (scheduledTime == null) {
+    return "This booking can no longer be cancelled.";
+  }
+
+  if (scheduledTime - Date.now() <= CANCELLATION_WINDOW_MS) {
+    return "Cancellation is unavailable within 24 hours of the scheduled time.";
+  }
+
+  if (booking.payout_status === "ready" || booking.payout_status === "paid") {
+    return "This booking can no longer be cancelled because payout processing has started.";
+  }
+
+  if (booking.payout_status !== "locked") {
+    return "This booking can no longer be cancelled.";
+  }
+
+  if (booking.stripe_payment_intent_id == null) {
+    return "This booking can no longer be cancelled.";
+  }
+
+  return null;
+}
+
+function isUnpaidCancellable(booking: CancelBookingRow): boolean {
+  if (booking.status === "pending") {
+    return true;
+  }
+
+  if (
+    booking.status === "accepted_pending_payment" &&
+    booking.payment_status === "unpaid"
+  ) {
+    return true;
+  }
+
+  if (booking.status === "confirmed" && booking.payment_status === "unpaid") {
+    if (
+      booking.cleaner_marked_complete_at != null ||
+      booking.client_marked_complete_at != null
+    ) {
+      return false;
+    }
+
+    if (!isMoreThan24HoursBeforeScheduled(booking.scheduled_at)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
 export async function cancelBookingAction(
   _prevState: CancelBookingState,
   formData: FormData
@@ -137,7 +247,7 @@ export async function cancelBookingAction(
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
     .select(
-      "id, client_id, status, scheduled_at, cleaner_marked_complete_at, client_marked_complete_at"
+      "id, client_id, status, payment_status, payout_status, scheduled_at, stripe_payment_intent_id, stripe_refund_id, cleaner_marked_complete_at, client_marked_complete_at"
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -154,46 +264,96 @@ export async function cancelBookingAction(
     return { error: "You cannot cancel this booking." };
   }
 
-  if (booking.status !== "pending" && booking.status !== "confirmed" && booking.status !== "accepted_pending_payment") {
-    return { error: "This booking can no longer be cancelled." };
-  }
+  const paidRefundError = isPaidRefundEligible(booking);
+  const requiresRefund =
+    booking.status === "confirmed" && booking.payment_status === "paid";
 
-  if (booking.status === "accepted_pending_payment") {
-    const { data: fullBooking } = await supabase
+  if (requiresRefund) {
+    if (paidRefundError) {
+      return { error: paidRefundError };
+    }
+
+    let refund;
+    try {
+      refund = await createBookingRefund({
+        paymentIntentId: booking.stripe_payment_intent_id!,
+        bookingId: booking.id,
+        clientId: user.id,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Stripe refund failed.";
+      return { error: `Refund failed: ${message}` };
+    }
+
+    let admin;
+    try {
+      admin = createAdminClient();
+    } catch {
+      return {
+        error:
+          "Refund succeeded but booking could not be updated. Contact support.",
+      };
+    }
+
+    const nowIso = new Date().toISOString();
+    const { data: updated, error: updateError } = await admin
       .from("bookings")
-      .select("payment_status")
+      .update({
+        status: "cancelled",
+        payment_status: "refunded",
+        refunded_at: nowIso,
+        stripe_refund_id: refund.id,
+        payout_status: "paused",
+      })
       .eq("id", bookingId)
+      .eq("client_id", user.id)
+      .eq("status", "confirmed")
+      .eq("payment_status", "paid")
+      .eq("payout_status", "locked")
+      .is("stripe_refund_id", null)
+      .is("cleaner_marked_complete_at", null)
+      .is("client_marked_complete_at", null)
+      .select("id")
       .maybeSingle();
 
-    if (fullBooking?.payment_status === "paid") {
-      return { error: "This booking can no longer be cancelled." };
+    if (updateError) {
+      return {
+        error:
+          "Refund succeeded but booking could not be updated. Contact support.",
+      };
     }
+
+    if (!updated) {
+      return { error: "This booking has already been refunded." };
+    }
+
+    revalidatePath("/client/bookings");
+    revalidatePath(`/cleaner/jobs/${bookingId}`);
+    revalidatePath("/cleaner/dashboard");
+    return { error: null };
   }
 
-  if (booking.status === "confirmed") {
+  if (!isUnpaidCancellable(booking)) {
+    if (
+      booking.status === "confirmed" &&
+      booking.payment_status === "unpaid" &&
+      !isMoreThan24HoursBeforeScheduled(booking.scheduled_at)
+    ) {
+      return {
+        error:
+          "Cancellation is unavailable within 24 hours of the scheduled time.",
+      };
+    }
+
     if (
       booking.cleaner_marked_complete_at != null ||
       booking.client_marked_complete_at != null
     ) {
-      return {
-        error: "Cannnot cancel after completion has been started.",
-      };
+      return { error: "Cannot cancel after completion has started." };
     }
 
-    const scheduledTime = booking.scheduled_at
-      ? new Date(booking.scheduled_at).getTime()
-      : NaN;
-
-    if (Number.isNaN(scheduledTime)) {
-      return { error: "This booking can no longer be cancelled." };
-    }
-
-    if (scheduledTime - Date.now() <= CANCELLATION_WINDOW_MS) {
-      return {
-        error:
-          "Confirmed bookings can't be cancelled within 24 hours of the scheduled time.",
-      };
-    }
+    return { error: "This booking can no longer be cancelled." };
   }
 
   const { data: updated, error: updateError } = await supabase
@@ -214,6 +374,8 @@ export async function cancelBookingAction(
   }
 
   revalidatePath("/client/bookings");
+  revalidatePath(`/cleaner/jobs/${bookingId}`);
+  revalidatePath("/cleaner/dashboard");
   return { error: null };
 }
 

@@ -26,6 +26,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function getStatusLabel(status: string, paymentStatus: string): string {
+  if (status === "cancelled" && paymentStatus === "refunded") {
+    return "Cancelled";
+  }
+
   if (status === "confirmed" && paymentStatus === "paid") {
     return "Paid and confirmed";
   }
@@ -98,6 +102,9 @@ export default async function JobPage({ params }: JobPageProps) {
   if (!booking) {
     notFound();
   }
+
+  const isCancelled = booking.status === "cancelled";
+  const isRefunded = booking.payment_status === "refunded";
 
   const isAwaitingPayment = booking.status === "accepted_pending_payment";
   const isPaidAndConfirmed =
@@ -174,6 +181,18 @@ export default async function JobPage({ params }: JobPageProps) {
             ) : null}
 
             <div className="mt-6 flex flex-col gap-2">
+              {isCancelled ? (
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-red-600">Cancelled</p>
+                  {isRefunded ? (
+                    <p className="text-sm text-gray-600">
+                      Client cancelled before the 24-hour cutoff. No payout is
+                      due.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
               {isAwaitingPayment ? (
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-orange-700">

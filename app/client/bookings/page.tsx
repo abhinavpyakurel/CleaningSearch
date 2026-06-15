@@ -22,6 +22,9 @@ type ClientBooking = {
   notes: string | null;
   status: string;
   payment_status: string;
+  payout_status: string;
+  stripe_payment_intent_id: string | null;
+  stripe_refund_id: string | null;
   cleaner_payout_cents: number | null;
   platform_fee_cents: number | null;
   cleaner_id: string | null;
@@ -50,6 +53,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function getStatusLabel(status: string, paymentStatus: string): string {
+  if (status === "cancelled" && paymentStatus === "refunded") {
+    return "Cancelled and refunded";
+  }
+
   if (status === "confirmed" && paymentStatus === "paid") {
     return "Paid and confirmed";
   }
@@ -279,8 +286,11 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
           </p>
         ) : null}
 
-        {cancellationUi.canCancel ? (
-          <CancelBookingForm bookingId={booking.id} />
+        {cancellationUi.canCancel && cancellationUi.cancelMode ? (
+          <CancelBookingForm
+            bookingId={booking.id}
+            cancelMode={cancellationUi.cancelMode}
+          />
         ) : cancellationUi.policyMessage ? (
           <p className="text-sm text-gray-500">{cancellationUi.policyMessage}</p>
         ) : null}
@@ -352,7 +362,7 @@ export default async function BookingsPage({ searchParams }: BookingsPageProps) 
   const { data: bookings, error } = await supabase
     .from("bookings")
     .select(
-      "id, service_address, scheduled_at, duration_hours, notes, status, payment_status, cleaner_id, client_requested_hours, total_price_cents, cleaner_payout_cents, platform_fee_cents, counter_adjustments, counter_hours, counter_total_price_cents, counter_reason, cleaner_marked_complete_at, client_marked_complete_at"
+      "id, service_address, scheduled_at, duration_hours, notes, status, payment_status, payout_status, stripe_payment_intent_id, stripe_refund_id, cleaner_id, client_requested_hours, total_price_cents, cleaner_payout_cents, platform_fee_cents, counter_adjustments, counter_hours, counter_total_price_cents, counter_reason, cleaner_marked_complete_at, client_marked_complete_at"
     )
     .eq("client_id", user.id)
     .order("scheduled_at", { ascending: false });
