@@ -156,6 +156,11 @@ export default async function BookingConfirmPage({
                 Estimated total
               </dt>
               <dd className="mt-1">{totalAmount}</dd>
+              <p className="mt-2 text-xs text-muted-foreground">
+                CleanMatch service fee is non-refundable after your booking is
+                accepted. Cleaning service refunds are available for eligible
+                cancellations more than 24 hours before the scheduled time.
+              </p>
             </div>
             {specialRequests ? (
               <div>

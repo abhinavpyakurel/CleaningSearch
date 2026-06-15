@@ -25,6 +25,8 @@ type ClientBooking = {
   payout_status: string;
   stripe_payment_intent_id: string | null;
   stripe_refund_id: string | null;
+  refund_amount_cents: number | null;
+  non_refundable_fee_cents: number | null;
   cleaner_payout_cents: number | null;
   platform_fee_cents: number | null;
   cleaner_id: string | null;
@@ -54,7 +56,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 function getStatusLabel(status: string, paymentStatus: string): string {
   if (status === "cancelled" && paymentStatus === "refunded") {
-    return "Cancelled and refunded";
+    return "Refunded";
   }
 
   if (status === "confirmed" && paymentStatus === "paid") {
@@ -152,6 +154,14 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
     booking.client_requested_hours ?? booking.duration_hours;
   const displayHours =
     booking.status === "countered" ? originalHours : booking.duration_hours;
+  const isRefunded =
+    booking.status === "cancelled" && booking.payment_status === "refunded";
+  const refundedServiceAmount = formatUsdFromCents(
+    booking.refund_amount_cents ?? booking.cleaner_payout_cents
+  );
+  const refundedNonRefundableFee = formatUsdFromCents(
+    booking.non_refundable_fee_cents ?? booking.platform_fee_cents
+  );
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-200 hover:shadow-md">
@@ -271,6 +281,11 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
               <span>{totalPrice}</span>
             </div>
           </div>
+          <p className="mt-3 text-xs text-gray-500">
+            CleanMatch service fee is non-refundable after your booking is
+            accepted. Cleaning service refunds are available for eligible
+            cancellations more than 24 hours before the scheduled time.
+          </p>
           <PayNowForm bookingId={booking.id} />
         </section>
       ) : null}
@@ -290,9 +305,18 @@ function BookingCard({ booking }: { booking: ClientBooking }) {
           <CancelBookingForm
             bookingId={booking.id}
             cancelMode={cancellationUi.cancelMode}
+            refundBreakdown={cancellationUi.refundBreakdown}
           />
         ) : cancellationUi.policyMessage ? (
           <p className="text-sm text-gray-500">{cancellationUi.policyMessage}</p>
+        ) : null}
+
+        {isRefunded ? (
+          <div className="space-y-1 text-sm text-gray-600">
+            <p className="font-semibold text-gray-900">Refunded</p>
+            <p>Cleaning service refund: {refundedServiceAmount}</p>
+            <p>Non-refundable service fee: {refundedNonRefundableFee}</p>
+          </div>
         ) : null}
 
         {canReview ? <ReviewBookingForm bookingId={booking.id} /> : null}
@@ -362,7 +386,7 @@ export default async function BookingsPage({ searchParams }: BookingsPageProps) 
   const { data: bookings, error } = await supabase
     .from("bookings")
     .select(
-      "id, service_address, scheduled_at, duration_hours, notes, status, payment_status, payout_status, stripe_payment_intent_id, stripe_refund_id, cleaner_id, client_requested_hours, total_price_cents, cleaner_payout_cents, platform_fee_cents, counter_adjustments, counter_hours, counter_total_price_cents, counter_reason, cleaner_marked_complete_at, client_marked_complete_at"
+      "id, service_address, scheduled_at, duration_hours, notes, status, payment_status, payout_status, stripe_payment_intent_id, stripe_refund_id, refund_amount_cents, non_refundable_fee_cents, cleaner_id, client_requested_hours, total_price_cents, cleaner_payout_cents, platform_fee_cents, counter_adjustments, counter_hours, counter_total_price_cents, counter_reason, cleaner_marked_complete_at, client_marked_complete_at"
     )
     .eq("client_id", user.id)
     .order("scheduled_at", { ascending: false });

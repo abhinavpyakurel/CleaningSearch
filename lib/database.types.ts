@@ -84,6 +84,7 @@ export type Database = {
           notes: string | null
           paid_at: string | null
           paid_out_at: string | null
+          non_refundable_fee_cents: number | null
           refunded_at: string | null
           payment_status: string
           pet_hair_level: string | null
@@ -91,6 +92,7 @@ export type Database = {
           platform_fee: number | null
           platform_fee_cents: number | null
           recommended_hours: number | null
+          refund_amount_cents: number | null
           scheduled_at: string | null
           scope_snapshot: Json | null
           service_address: string | null
@@ -152,12 +154,14 @@ export type Database = {
           notes?: string | null
           paid_at?: string | null
           paid_out_at?: string | null
+          non_refundable_fee_cents?: number | null
           payment_status?: string
           pet_hair_level?: string | null
           payout_status?: string
           platform_fee?: number | null
           platform_fee_cents?: number | null
           recommended_hours?: number | null
+          refund_amount_cents?: number | null
           refunded_at?: string | null
           scheduled_at?: string | null
           scope_snapshot?: Json | null
@@ -220,12 +224,14 @@ export type Database = {
           notes?: string | null
           paid_at?: string | null
           paid_out_at?: string | null
+          non_refundable_fee_cents?: number | null
           payment_status?: string
           pet_hair_level?: string | null
           payout_status?: string
           platform_fee?: number | null
           platform_fee_cents?: number | null
           recommended_hours?: number | null
+          refund_amount_cents?: number | null
           refunded_at?: string | null
           scheduled_at?: string | null
           scope_snapshot?: Json | null

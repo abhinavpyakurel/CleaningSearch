@@ -186,8 +186,8 @@ export default async function JobPage({ params }: JobPageProps) {
                   <p className="text-sm font-semibold text-red-600">Cancelled</p>
                   {isRefunded ? (
                     <p className="text-sm text-gray-600">
-                      Client cancelled before the 24-hour cutoff. No payout is
-                      due.
+                      No cleaner payout is due because the client cancelled
+                      before the cancellation cutoff.
                     </p>
                   ) : null}
                 </div>

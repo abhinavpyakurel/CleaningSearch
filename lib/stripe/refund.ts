@@ -6,6 +6,7 @@ type CreateBookingRefundInput = {
   paymentIntentId: string;
   bookingId: string;
   clientId: string;
+  amountCents: number;
 };
 
 export async function createBookingRefund(
@@ -15,6 +16,7 @@ export async function createBookingRefund(
 
   return stripe.refunds.create({
     payment_intent: input.paymentIntentId,
+    amount: input.amountCents,
     metadata: {
       booking_id: input.bookingId,
       client_id: input.clientId,

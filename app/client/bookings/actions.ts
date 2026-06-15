@@ -151,9 +151,44 @@ type CancelBookingRow = {
   scheduled_at: string | null;
   stripe_payment_intent_id: string | null;
   stripe_refund_id: string | null;
+  cleaner_payout_cents: number | null;
+  platform_fee_cents: number | null;
+  total_price_cents: number | null;
   cleaner_marked_complete_at: string | null;
   client_marked_complete_at: string | null;
 };
+
+function getPaidRefundAmounts(booking: CancelBookingRow): {
+  refundAmountCents: number;
+  nonRefundableFeeCents: number;
+} | { error: string } {
+  if (
+    booking.cleaner_payout_cents == null ||
+    !Number.isFinite(booking.cleaner_payout_cents) ||
+    booking.cleaner_payout_cents <= 0
+  ) {
+    return {
+      error:
+        "This booking cannot be refunded right now. Please contact support.",
+    };
+  }
+
+  const refundAmountCents = booking.cleaner_payout_cents;
+  const nonRefundableFeeCents = booking.platform_fee_cents ?? 0;
+
+  if (
+    booking.total_price_cents != null &&
+    Number.isFinite(booking.total_price_cents) &&
+    refundAmountCents > booking.total_price_cents
+  ) {
+    return {
+      error:
+        "This booking cannot be refunded right now. Please contact support.",
+    };
+  }
+
+  return { refundAmountCents, nonRefundableFeeCents };
+}
 
 function isPaidRefundEligible(booking: CancelBookingRow): string | null {
   if (
@@ -247,7 +282,7 @@ export async function cancelBookingAction(
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
     .select(
-      "id, client_id, status, payment_status, payout_status, scheduled_at, stripe_payment_intent_id, stripe_refund_id, cleaner_marked_complete_at, client_marked_complete_at"
+      "id, client_id, status, payment_status, payout_status, scheduled_at, stripe_payment_intent_id, stripe_refund_id, cleaner_payout_cents, platform_fee_cents, total_price_cents, cleaner_marked_complete_at, client_marked_complete_at"
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -273,12 +308,20 @@ export async function cancelBookingAction(
       return { error: paidRefundError };
     }
 
+    const refundAmounts = getPaidRefundAmounts(booking);
+    if ("error" in refundAmounts) {
+      return { error: refundAmounts.error };
+    }
+
+    const { refundAmountCents, nonRefundableFeeCents } = refundAmounts;
+
     let refund;
     try {
       refund = await createBookingRefund({
         paymentIntentId: booking.stripe_payment_intent_id!,
         bookingId: booking.id,
         clientId: user.id,
+        amountCents: refundAmountCents,
       });
     } catch (error) {
       const message =
@@ -304,6 +347,8 @@ export async function cancelBookingAction(
         payment_status: "refunded",
         refunded_at: nowIso,
         stripe_refund_id: refund.id,
+        refund_amount_cents: refundAmountCents,
+        non_refundable_fee_cents: nonRefundableFeeCents,
         payout_status: "paused",
       })
       .eq("id", bookingId)
