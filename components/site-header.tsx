@@ -1,14 +1,19 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 
-
 import { Button } from "@/components/ui/button";
+import { CleanerNav } from "@/components/cleaner-nav";
+import { ClientNav } from "@/components/client-nav";
+import { PublicNav } from "@/components/public-nav";
 import { getProfile } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 
+const HIDDEN_PATHS = new Set(["/", "/login", "/register"]);
+
 export async function SiteHeader() {
   const pathname = headers().get("x-pathname") ?? "";
-  if (pathname === "/") {
+
+  if (HIDDEN_PATHS.has(pathname)) {
     return null;
   }
 
@@ -17,46 +22,29 @@ export async function SiteHeader() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const profile = user
-    ? await getProfile(supabase, user.id)
-    : { role: null, full_name: null, error: null };
+  if (!user) {
+    return <PublicNav />;
+  }
+
+  const profile = await getProfile(supabase, user.id);
+
+  if (profile.role === "client") {
+    return <ClientNav />;
+  }
+
+  if (profile.role === "cleaner") {
+    return <CleanerNav />;
+  }
 
   return (
-    <header className="border-b border-border">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" className="text-sm font-semibold tracking-tight">
+    <header className="sticky top-0 z-50 border-b border-border bg-card">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <Link href="/" className="text-sm font-semibold tracking-tight text-foreground">
           CleanMatch
         </Link>
-        <nav className="flex flex-wrap items-center justify-end gap-2">
-          {!user ? (
-            <>
-              <Button variant="ghost" render={<Link href="/login" />}>
-                Login
-              </Button>
-              <Button render={<Link href="/register" />}>Sign up</Button>
-            </>
-          ) : (
-            <>
-              {profile.role === "client" ? (
-                <>
-                  <Button variant="ghost" render={<Link href="/client/bookings" />}>
-                    My bookings
-                  </Button>
-                  <Button render={<Link href="/client/cleaners" />}>
-                    Find a cleaner
-                  </Button>
-                </>
-              ) : profile.role === "cleaner" ? (
-                <Button render={<Link href="/cleaner/dashboard" />}>
-                  Dashboard
-                </Button>
-              ) : null}
-              <Button variant="ghost" render={<Link href="/logout" />}>
-                Log out
-              </Button>
-            </>
-          )}
-        </nav>
+        <Button variant="ghost" size="sm" render={<Link href="/logout" />}>
+          Log out
+        </Button>
       </div>
     </header>
   );

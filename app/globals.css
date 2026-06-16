@@ -82,19 +82,20 @@
   }
 
   :root {
-    /* CleanMatch brand palette — rich teal (premium, trustworthy, “fresh clean”) */
-    --brand: #00695c;
-    --brand-light: rgba(0, 105, 92, 0.14);
-    --brand-dark: #004d40;
+    color-scheme: light;
+    /* CleanMatch brand palette — v0 green primary */
+    --brand: #16a34a;
+    --brand-light: rgba(22, 163, 74, 0.14);
+    --brand-dark: #15803d;
     --background: #fafaf8;
     --surface: #ffffff;
     --text-primary: #1a1a1a;
     --text-secondary: #555555;
-    --text-muted: #999999;
+    --text-muted: #737373;
     --border: #e5e5e5;
-    --success: #2e7d32;
+    --success: #16a34a;
     --warning: #f59e0b;
-    --destructive: #c62828;
+    --destructive: #dc2626;
 
     /* shadcn/ui — mapped to CleanMatch tokens (keeps components working) */
     --foreground: var(--text-primary);
@@ -104,69 +105,69 @@
     --popover-foreground: var(--text-primary);
     --primary: var(--brand);
     --primary-foreground: #ffffff;
-    --secondary: color-mix(in srgb, var(--brand) 8%, var(--surface));
-    --secondary-foreground: var(--text-primary);
-    --muted: #f3f4f2;
+    --secondary: #f0fdf4;
+    --secondary-foreground: #166534;
+    --muted: #f5f5f4;
     --muted-foreground: var(--text-muted);
-    --accent: var(--brand-light);
-    --accent-foreground: var(--brand-dark);
+    --accent: #dcfce7;
+    --accent-foreground: #166534;
     --destructive-foreground: #ffffff;
     --input: var(--border);
     --ring: var(--brand);
     --chart-1: var(--brand);
-    --chart-2: var(--success);
-    --chart-3: var(--warning);
-    --chart-4: var(--brand-dark);
+    --chart-2: #22c55e;
+    --chart-3: #86efac;
+    --chart-4: #bbf7d0;
     --chart-5: var(--text-secondary);
     --radius: 0.75rem;
     --sidebar: var(--surface);
     --sidebar-foreground: var(--text-primary);
     --sidebar-primary: var(--brand);
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: var(--brand-light);
-    --sidebar-accent-foreground: var(--brand-dark);
+    --sidebar-accent: #dcfce7;
+    --sidebar-accent-foreground: #166534;
     --sidebar-border: var(--border);
     --sidebar-ring: var(--brand);
 
     /* Shadows (referenced by Tailwind shadow-card utilities) */
     --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.04);
     --shadow-card-hover:
-      0 12px 28px -8px rgb(0 105 92 / 0.12), 0 8px 16px -8px rgb(0 0 0 / 0.08);
+      0 12px 28px -8px rgb(22 163 74 / 0.12), 0 8px 16px -8px rgb(0 0 0 / 0.08);
   }
 
   .dark {
-    --background: #121816;
-    --surface: #1a2220;
+    --background: #0f1410;
+    --surface: #1a2118;
     --text-primary: #f5f5f4;
-    --text-secondary: #b8c4c1;
-    --text-muted: #7a8a86;
+    --text-secondary: #c4cfc0;
+    --text-muted: #8a9a86;
     --border: rgb(255 255 255 / 12%);
-    --brand-light: rgba(0, 105, 92, 0.22);
+    --brand-light: rgba(34, 197, 94, 0.22);
     --foreground: var(--text-primary);
     --card: var(--surface);
     --card-foreground: var(--text-primary);
     --popover: var(--surface);
     --popover-foreground: var(--text-primary);
-    --primary: #26a69a;
-    --primary-foreground: #0a1412;
+    --primary: #22c55e;
+    --primary-foreground: #0a140c;
     --secondary: rgb(255 255 255 / 8%);
     --secondary-foreground: var(--text-primary);
     --muted: rgb(255 255 255 / 6%);
     --muted-foreground: var(--text-muted);
-    --accent: var(--brand-light);
-    --accent-foreground: #80cbc4;
+    --accent: rgba(34, 197, 94, 0.18);
+    --accent-foreground: #86efac;
     --destructive: #ef5350;
     --destructive-foreground: #ffffff;
     --input: var(--border);
-    --ring: #26a69a;
+    --ring: #22c55e;
     --sidebar: var(--surface);
     --sidebar-foreground: var(--text-primary);
-    --sidebar-primary: #26a69a;
-    --sidebar-primary-foreground: #0a1412;
-    --sidebar-accent: var(--brand-light);
-    --sidebar-accent-foreground: #80cbc4;
+    --sidebar-primary: #22c55e;
+    --sidebar-primary-foreground: #0a140c;
+    --sidebar-accent: rgba(34, 197, 94, 0.18);
+    --sidebar-accent-foreground: #86efac;
     --sidebar-border: var(--border);
-    --sidebar-ring: #26a69a;
+    --sidebar-ring: #22c55e;
     --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.35);
     --shadow-card-hover: 0 12px 28px -8px rgb(0 0 0 / 0.45);
   }

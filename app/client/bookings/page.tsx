@@ -8,7 +8,6 @@ import { MarkCompleteForm } from "@/app/client/bookings/mark-complete-form";
 import { ReviewBookingForm } from "@/app/client/bookings/review-booking-form";
 import { PayNowForm } from "@/app/client/bookings/pay-now-form";
 import { createClient } from "@/lib/supabase/server";
-import { SiteHeader } from "@/components/site-header";
 import { formatUsdFromCents } from "@/lib/booking-price";
 import { getClientCancellationUi } from "@/lib/booking-cancellation";
 import { parseCounterAdjustments } from "@/lib/counter-offer";
@@ -459,9 +458,7 @@ export default async function BookingsPage({ searchParams }: BookingsPageProps) 
   });
 
   return (
-    <>
-      <SiteHeader />
-      <div className="min-h-screen w-full bg-[#F5F5F0]">
+    <div className="min-h-screen w-full bg-[#F5F5F0]">
         <header className="mx-auto max-w-4xl px-6 pb-6 pt-12">
           <h1 className="text-4xl font-bold text-gray-900">My bookings</h1>
           <p className="mt-1 text-base text-gray-500">
@@ -498,6 +495,5 @@ export default async function BookingsPage({ searchParams }: BookingsPageProps) 
           </ul>
         )}
       </div>
-    </>
   );
 }

@@ -6,7 +6,6 @@ import { formatAvailabilitySummary } from "@/lib/cleaner-availability";
 import { isCleanerPubliclyVisible } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 import { buildReviewStatsByReviewee } from "@/lib/reviews/stats";
-import { SiteHeader } from "@/components/site-header";
 
 type CleanerDetail = Pick<
   Tables<"cleaner_profiles">,
@@ -163,9 +162,7 @@ export default async function CleanerProfilePage({
   const canBook = detail.is_available && hasAvailability;
 
   return (
-    <>
-      <SiteHeader />
-      <div className="min-h-screen w-full bg-[#F5F5F0]">
+    <div className="min-h-screen w-full bg-[#F5F5F0]">
         <div className="mx-auto max-w-3xl px-6 pb-16 pt-12">
           <Link
             href="/client/cleaners"
@@ -262,6 +259,5 @@ export default async function CleanerProfilePage({
           </section>
         </div>
       </div>
-    </>
   );
 }

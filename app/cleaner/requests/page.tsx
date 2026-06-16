@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { SiteHeader } from "@/components/site-header";
 import { CounterOfferForm } from "@/app/cleaner/requests/counter-offer-form";
 import { RequestResponseForms } from "@/app/cleaner/requests/request-response-forms";
 import { BookingPhotoGallery } from "@/app/cleaner/requests/booking-photo-gallery";
@@ -267,9 +266,7 @@ export default async function CleanerRequestsPage() {
   );
 
   return (
-    <>
-      <SiteHeader />
-      <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col gap-6 p-4 sm:p-8">
+    <main className="mx-auto flex min-h-screen w-full max-w-lg flex-col gap-6 p-4 sm:p-8">
         <header>
           <h1 className="text-2xl font-semibold tracking-tight">
             Incoming requests
@@ -293,6 +290,5 @@ export default async function CleanerRequestsPage() {
           </ul>
         )}
       </main>
-    </>
   );
 }

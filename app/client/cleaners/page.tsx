@@ -8,7 +8,6 @@ import {
   buildReviewStatsByReviewee,
   type ReviewStats,
 } from "@/lib/reviews/stats";
-import { SiteHeader } from "@/components/site-header";
 
 type AvailableCleaner = Pick<
   Tables<"cleaner_profiles">,
@@ -268,9 +267,7 @@ export default async function ClientCleanersPage() {
     });
 
   return (
-    <>
-      <SiteHeader />
-      <div className="relative min-h-screen w-full overflow-hidden bg-[#F5F5F0]">
+    <div className="relative min-h-screen w-full overflow-hidden bg-[#F5F5F0]">
         <div
           className="pointer-events-none absolute -right-20 -top-20 h-96 w-96 rounded-full bg-[#00695C] opacity-5"
           aria-hidden
@@ -305,6 +302,5 @@ export default async function ClientCleanersPage() {
           </ul>
         )}
       </div>
-    </>
   );
 }

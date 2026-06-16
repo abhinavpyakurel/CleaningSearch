@@ -4,7 +4,6 @@ import { Calendar, Clock, MapPin } from "lucide-react";
 
 import { MarkJobCompleteForm } from "@/app/cleaner/jobs/[id]/mark-complete-form";
 import { ReleasePayoutForm } from "@/app/cleaner/jobs/[id]/release-payout-form";
-import { SiteHeader } from "@/components/site-header";
 import { getPayoutStatusLabel } from "@/lib/booking-completion";
 import { formatUsdFromCents } from "@/lib/booking-price";
 import { createClient } from "@/lib/supabase/server";
@@ -122,9 +121,7 @@ export default async function JobPage({ params }: JobPageProps) {
   const isPayoutPaid = booking.payout_status === "paid";
 
   return (
-    <>
-      <SiteHeader />
-      <div className="min-h-screen w-full bg-[#F5F5F0]">
+    <div className="min-h-screen w-full bg-[#F5F5F0]">
         <header className="mx-auto max-w-3xl px-6 pb-6 pt-12">
           <Link
             href="/cleaner/dashboard"
@@ -264,6 +261,5 @@ export default async function JobPage({ params }: JobPageProps) {
           </div>
         </section>
       </div>
-    </>
   );
 }

@@ -9,7 +9,6 @@ import { CleanerStatsCard } from "@/app/cleaner/dashboard/cleaner-stats-card";
 import { PayoutSetupCard } from "@/app/cleaner/dashboard/payout-setup-card";
 import { createClient } from "@/lib/supabase/server";
 import { getPayoutStatusLabel } from "@/lib/booking-completion";
-import { SiteHeader } from "@/components/site-header";
 
 type JobListing = {
   id: string;
@@ -207,9 +206,7 @@ export default async function CleanerDashboardPage() {
   const welcomeName = profile.full_name ?? user.email ?? "there";
 
   return (
-    <>
-      <SiteHeader />
-      <div className="relative min-h-screen max-w-screen bg-[#F5F5F0]">
+    <div className="relative min-h-screen max-w-screen bg-[#F5F5F0]">
         <div
           className="pointer-events-none absolute -right-16 -top-16 h-80 w-80 rounded-full bg-[#00695C] opacity-5"
           aria-hidden
@@ -384,6 +381,5 @@ export default async function CleanerDashboardPage() {
           </section>
         </div>
       </div>
-    </>
   );
 }
