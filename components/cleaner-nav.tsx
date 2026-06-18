@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Inbox, LayoutDashboard, LogOut, Sparkles } from "lucide-react";
+import { Inbox, LayoutDashboard, Sparkles } from "lucide-react";
 
+import { LogoutButton } from "@/components/logout-button";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -58,13 +59,9 @@ export function CleanerNav() {
               <span className="hidden lg:inline">{label}</span>
             </Link>
           ))}
-          <Link
-            href="/logout"
-            className="flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <LogOut className="size-4 shrink-0" />
+          <LogoutButton className="whitespace-nowrap rounded-lg px-2.5 py-2 text-muted-foreground hover:bg-muted hover:text-foreground">
             <span className="hidden lg:inline">Log out</span>
-          </Link>
+          </LogoutButton>
         </nav>
       </div>
     </header>

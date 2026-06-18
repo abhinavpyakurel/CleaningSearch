@@ -1,19 +1,28 @@
 import Link from "next/link";
 import { headers } from "next/headers";
 
-import { Button } from "@/components/ui/button";
 import { CleanerNav } from "@/components/cleaner-nav";
 import { ClientNav } from "@/components/client-nav";
-import { PublicNav } from "@/components/public-nav";
+import { LogoutButton } from "@/components/logout-button";
 import { getProfile } from "@/lib/profiles";
 import { createClient } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 const HIDDEN_PATHS = new Set(["/", "/login", "/register"]);
+
+function shouldHideHeader(pathname: string): boolean {
+  if (!pathname || HIDDEN_PATHS.has(pathname)) {
+    return true;
+  }
+
+  return false;
+}
 
 export async function SiteHeader() {
   const pathname = headers().get("x-pathname") ?? "";
 
-  if (HIDDEN_PATHS.has(pathname)) {
+  if (shouldHideHeader(pathname)) {
     return null;
   }
 
@@ -23,7 +32,7 @@ export async function SiteHeader() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return <PublicNav />;
+    return null;
   }
 
   const profile = await getProfile(supabase, user.id);
@@ -42,9 +51,7 @@ export async function SiteHeader() {
         <Link href="/" className="text-sm font-semibold tracking-tight text-foreground">
           CleanMatch
         </Link>
-        <Button variant="ghost" size="sm" render={<Link href="/logout" />}>
-          Log out
-        </Button>
+        <LogoutButton variant="button" />
       </div>
     </header>
   );
