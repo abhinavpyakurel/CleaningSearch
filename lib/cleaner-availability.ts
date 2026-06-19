@@ -307,6 +307,51 @@ export function formatAvailabilitySummary(
   return `Available ${parts.join("; ")}`;
 }
 
+export function formatTypicalAvailabilitySummary(
+  windows: CleanerAvailabilityWindow[]
+): string | null {
+  const summary = formatAvailabilitySummary(windows);
+  if (!summary) {
+    return null;
+  }
+
+  return summary.replace(/^Available /, "Typical availability: ");
+}
+
+export type WeeklyAvailabilityRow = {
+  dayOfWeek: number;
+  dayLabelShort: string;
+  timeRanges: string[];
+};
+
+export function buildWeeklyAvailabilityRows(
+  windows: CleanerAvailabilityWindow[]
+): WeeklyAvailabilityRow[] {
+  return DAY_LABELS_SHORT.map((dayLabelShort, dayOfWeek) => {
+    const dayWindows = windows
+      .filter((window) => window.day_of_week === dayOfWeek)
+      .sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+    const timeRanges = dayWindows.map(
+      (window) =>
+        `${formatTimeForDisplay(window.start_time)}–${formatTimeForDisplay(window.end_time)}`
+    );
+
+    return {
+      dayOfWeek,
+      dayLabelShort,
+      timeRanges,
+    };
+  });
+}
+
+export function cleanerHasAvailabilityOnDay(
+  windows: CleanerAvailabilityWindow[],
+  dayOfWeek: number
+): boolean {
+  return windows.some((window) => window.day_of_week === dayOfWeek);
+}
+
 export type DayAvailabilityState = {
   enabled: boolean;
   startTime: string;
