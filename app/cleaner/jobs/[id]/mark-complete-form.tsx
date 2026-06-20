@@ -1,6 +1,7 @@
 "use client";
 
 import { markJobCompleteAction } from "@/app/cleaner/jobs/[id]/actions";
+import { Button } from "@/components/ui/button";
 
 type MarkJobCompleteFormProps = {
   bookingId: string;
@@ -8,14 +9,11 @@ type MarkJobCompleteFormProps = {
 
 export function MarkJobCompleteForm({ bookingId }: MarkJobCompleteFormProps) {
   return (
-    <form action={markJobCompleteAction} className="mt-4">
+    <form action={markJobCompleteAction}>
       <input type="hidden" name="booking_id" value={bookingId} />
-      <button
-        type="submit"
-        className="rounded-xl border border-[#00695C] bg-white px-4 py-2 text-sm font-semibold text-[#00695C] transition-colors hover:bg-[#00695C]/5"
-      >
+      <Button type="submit" variant="default">
         Mark job complete
-      </button>
+      </Button>
     </form>
   );
 }

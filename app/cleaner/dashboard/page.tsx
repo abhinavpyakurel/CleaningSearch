@@ -573,6 +573,14 @@ export default async function CleanerDashboardPage() {
                     Paid and confirmed bookings on your schedule
                   </CardDescription>
                 </div>
+                {confirmedJobs?.length ? (
+                  <Link href="/cleaner/jobs">
+                    <Button variant="ghost" size="sm" className="gap-1 text-xs">
+                      View all
+                      <ChevronRight className="size-3.5" />
+                    </Button>
+                  </Link>
+                ) : null}
               </CardHeader>
               <CardContent className="pt-0">
                 {!confirmedJobs?.length ? (

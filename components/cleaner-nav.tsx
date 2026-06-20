@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Inbox, LayoutDashboard, Sparkles } from "lucide-react";
+import { BriefcaseBusiness, Inbox, LayoutDashboard, Sparkles } from "lucide-react";
 
 import { LogoutButton } from "@/components/logout-button";
 import { cn } from "@/lib/utils";
@@ -14,7 +14,6 @@ const navItems = [
     icon: LayoutDashboard,
     isActive: (pathname: string) =>
       pathname === "/cleaner/dashboard" ||
-      pathname.startsWith("/cleaner/jobs/") ||
       pathname.startsWith("/cleaner/onboarding") ||
       pathname.startsWith("/cleaner/payouts/"),
   },
@@ -23,6 +22,13 @@ const navItems = [
     label: "Requests",
     icon: Inbox,
     isActive: (pathname: string) => pathname.startsWith("/cleaner/requests"),
+  },
+  {
+    href: "/cleaner/jobs",
+    label: "Jobs",
+    icon: BriefcaseBusiness,
+    isActive: (pathname: string) =>
+      pathname === "/cleaner/jobs" || pathname.startsWith("/cleaner/jobs/"),
   },
 ] as const;
 

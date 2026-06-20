@@ -6,6 +6,7 @@ import {
   releasePayoutAction,
   type ReleasePayoutActionState,
 } from "@/app/cleaner/jobs/[id]/actions";
+import { Button } from "@/components/ui/button";
 
 const initialState: ReleasePayoutActionState = { error: null };
 
@@ -17,13 +18,9 @@ function ReleasePayoutButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded-xl bg-[#00695C] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#004D40] disabled:opacity-60"
-    >
+    <Button type="submit" variant="outline" size="sm" disabled={pending}>
       {pending ? "Releasing…" : "Release test payout"}
-    </button>
+    </Button>
   );
 }
 
@@ -39,7 +36,7 @@ function ReleasePayoutError({
   }
 
   return (
-    <p className="text-sm text-red-600" role="alert">
+    <p className="text-sm text-destructive" role="alert">
       {error}
     </p>
   );
@@ -50,9 +47,9 @@ export function ReleasePayoutForm({ bookingId }: ReleasePayoutFormProps) {
 
   if (state.success) {
     return (
-      <div className="mt-4 space-y-1">
-        <p className="text-sm font-semibold text-green-700">Paid out</p>
-        <p className="text-sm text-gray-600">
+      <div className="space-y-1">
+        <p className="text-sm font-semibold text-foreground">Paid out</p>
+        <p className="text-sm text-muted-foreground">
           This payout has been released to your Stripe account.
         </p>
       </div>
@@ -60,7 +57,7 @@ export function ReleasePayoutForm({ bookingId }: ReleasePayoutFormProps) {
   }
 
   return (
-    <form action={formAction} className="mt-4 space-y-2">
+    <form action={formAction} className="space-y-2">
       <input type="hidden" name="booking_id" value={bookingId} />
       <ReleasePayoutButton />
       <ReleasePayoutError error={state.error} />

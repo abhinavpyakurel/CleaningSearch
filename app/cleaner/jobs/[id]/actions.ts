@@ -99,6 +99,7 @@ export async function markJobCompleteAction(
   }
 
   revalidatePath(`/cleaner/jobs/${bookingId}`);
+  revalidatePath("/cleaner/jobs");
   revalidatePath("/cleaner/dashboard");
   revalidatePath("/client/bookings");
   return { error: null };
@@ -259,6 +260,7 @@ export async function releasePayoutAction(
   }
 
   revalidatePath(`/cleaner/jobs/${bookingId}`);
+  revalidatePath("/cleaner/jobs");
   revalidatePath("/cleaner/dashboard");
   return { error: null, success: true };
 }
