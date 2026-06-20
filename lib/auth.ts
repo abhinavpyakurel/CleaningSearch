@@ -4,7 +4,7 @@ export function roleHomePath(role: string): string {
   if (role === "cleaner") {
     return "/cleaner/dashboard";
   }
-  return "/client/home";
+  return "/client/cleaners";
 }
 
 export function parseProfileRole(value: FormDataEntryValue | null): ProfileRole {
