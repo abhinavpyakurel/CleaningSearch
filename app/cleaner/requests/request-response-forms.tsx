@@ -1,6 +1,7 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 import {
   acceptRequestAction,
@@ -20,7 +21,8 @@ function AcceptButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" disabled={pending}>
+    <Button type="submit" size="sm" className="flex-1 gap-1.5" disabled={pending}>
+      <CheckCircle2 className="size-3.5" />
       {pending ? "Accepting…" : "Accept"}
     </Button>
   );
@@ -30,7 +32,14 @@ function DeclineButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" variant="outline" disabled={pending}>
+    <Button
+      type="submit"
+      size="sm"
+      variant="outline"
+      className="flex-1 gap-1.5 text-destructive hover:text-destructive"
+      disabled={pending}
+    >
+      <XCircle className="size-3.5" />
       {pending ? "Declining…" : "Decline"}
     </Button>
   );
@@ -52,12 +61,12 @@ export function RequestResponseForms({ bookingId }: RequestResponseFormsProps) {
 
   return (
     <div className="flex w-full flex-col gap-2">
-      <div className="flex flex-wrap gap-2">
-        <form action={acceptAction}>
+      <div className="flex gap-2">
+        <form action={acceptAction} className="flex flex-1">
           <input type="hidden" name="booking_id" value={bookingId} />
           <AcceptButton />
         </form>
-        <form action={declineAction}>
+        <form action={declineAction} className="flex flex-1">
           <input type="hidden" name="booking_id" value={bookingId} />
           <DeclineButton />
         </form>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
+import { MessageSquarePlus } from "lucide-react";
 
 import {
   submitCounterOfferAction,
@@ -9,6 +10,7 @@ import {
 } from "@/app/cleaner/requests/actions";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import {
   formatUsdFromCents,
@@ -39,7 +41,7 @@ function SubmitCounterButton() {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" variant="secondary" disabled={pending}>
+    <Button type="submit" size="sm" variant="secondary" disabled={pending}>
       {pending ? "Sending…" : "Send counter offer"}
     </Button>
   );
@@ -78,7 +80,14 @@ export function CounterOfferForm({
 
   if (!open) {
     return (
-      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="w-full gap-1.5"
+        onClick={() => setOpen(true)}
+      >
+        <MessageSquarePlus className="size-3.5" />
         Suggest adjustment
       </Button>
     );
@@ -87,7 +96,7 @@ export function CounterOfferForm({
   return (
     <form
       action={formAction}
-      className="mt-4 w-full space-y-4 rounded-lg border border-dashed border-border p-4"
+      className="w-full space-y-4 rounded-lg border border-dashed border-border bg-muted/30 p-4"
     >
       <input type="hidden" name="booking_id" value={bookingId} />
 
@@ -183,15 +192,17 @@ export function CounterOfferForm({
         </div>
       </div>
 
+      <Separator />
+
       <div className="flex flex-wrap gap-2">
         <SubmitCounterButton />
-        <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
           Cancel
         </Button>
       </div>
 
       {state.error ? (
-        <p className="text-sm text-red-600" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {state.error}
         </p>
       ) : null}
