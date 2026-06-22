@@ -92,16 +92,19 @@ function getHeaderStatusLabel(
   paymentStatus: string,
   payoutStatus: string | null
 ): string {
-  if (status === "completed" && payoutStatus === "ready") {
-    return "Payout eligible";
-  }
-
-  if (status === "completed" && payoutStatus === "paid") {
-    return "Paid out";
+  if (status === "completed" && payoutStatus != null) {
+    if (
+      payoutStatus === "ready" ||
+      payoutStatus === "paid" ||
+      payoutStatus === "paused" ||
+      payoutStatus === "locked"
+    ) {
+      return getPayoutStatusLabel(payoutStatus);
+    }
   }
 
   if (payoutStatus === "paused") {
-    return "Payout paused";
+    return getPayoutStatusLabel(payoutStatus);
   }
 
   return getCleanerStatusLabel(status, paymentStatus);
@@ -413,7 +416,9 @@ export default async function JobPage({ params }: JobPageProps) {
 
               {isPayoutReady ? (
                 <div className="space-y-2">
-                  <p className="font-semibold text-foreground">Payout eligible</p>
+                  <p className="font-semibold text-foreground">
+                    {getPayoutStatusLabel("ready")}
+                  </p>
                   {bookingData.cleaner_payout_cents != null ? (
                     <p className="text-muted-foreground">
                       Your payout:{" "}
@@ -425,7 +430,9 @@ export default async function JobPage({ params }: JobPageProps) {
 
               {isPayoutPaid ? (
                 <div className="space-y-1">
-                  <p className="font-semibold text-foreground">Paid out</p>
+                  <p className="font-semibold text-foreground">
+                    {getPayoutStatusLabel("paid")}
+                  </p>
                   <p className="text-muted-foreground">
                     Paid out to your Stripe account.
                   </p>
@@ -439,7 +446,7 @@ export default async function JobPage({ params }: JobPageProps) {
 
               {isPayoutPaused ? (
                 <p className="font-semibold text-foreground">
-                  Payout paused for review
+                  {getPayoutStatusLabel("paused")}
                 </p>
               ) : null}
 

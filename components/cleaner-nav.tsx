@@ -8,6 +8,7 @@ import {
   Inbox,
   LayoutDashboard,
   Sparkles,
+  Wallet,
 } from "lucide-react";
 
 import { LogoutButton } from "@/components/logout-button";
@@ -20,8 +21,7 @@ const navItems = [
     icon: LayoutDashboard,
     isActive: (pathname: string) =>
       pathname === "/cleaner/dashboard" ||
-      pathname.startsWith("/cleaner/onboarding") ||
-      pathname.startsWith("/cleaner/payouts/"),
+      pathname.startsWith("/cleaner/onboarding"),
   },
   {
     href: "/cleaner/requests",
@@ -43,6 +43,14 @@ const navItems = [
     isActive: (pathname: string) =>
       pathname === "/cleaner/availability" ||
       pathname.startsWith("/cleaner/availability/"),
+  },
+  {
+    href: "/cleaner/payouts",
+    label: "Payouts",
+    icon: Wallet,
+    isActive: (pathname: string) =>
+      pathname === "/cleaner/payouts" ||
+      pathname.startsWith("/cleaner/payouts/"),
   },
 ] as const;
 

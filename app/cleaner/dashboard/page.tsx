@@ -661,11 +661,19 @@ export default async function CleanerDashboardPage() {
                 {(readyPayoutCents > 0 || paidOutCents > 0) ? (
                   <Card className="border border-border shadow-sm">
                     <CardContent className="p-5">
-                      <div className="mb-3 flex items-center gap-2">
-                        <Wallet className="size-4 text-muted-foreground" />
-                        <span className="text-sm font-semibold text-foreground">
-                          Earnings summary
-                        </span>
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="size-4 text-muted-foreground" />
+                          <span className="text-sm font-semibold text-foreground">
+                            Earnings summary
+                          </span>
+                        </div>
+                        <Link
+                          href="/cleaner/payouts"
+                          className="text-xs font-medium text-primary hover:underline"
+                        >
+                          View payouts
+                        </Link>
                       </div>
                       {readyPayoutCents > 0 ? (
                         <div className="mb-3">
