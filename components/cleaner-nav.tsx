@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BriefcaseBusiness, Inbox, LayoutDashboard, Sparkles } from "lucide-react";
+import {
+  BriefcaseBusiness,
+  CalendarDays,
+  Inbox,
+  LayoutDashboard,
+  Sparkles,
+} from "lucide-react";
 
 import { LogoutButton } from "@/components/logout-button";
 import { cn } from "@/lib/utils";
@@ -29,6 +35,14 @@ const navItems = [
     icon: BriefcaseBusiness,
     isActive: (pathname: string) =>
       pathname === "/cleaner/jobs" || pathname.startsWith("/cleaner/jobs/"),
+  },
+  {
+    href: "/cleaner/availability",
+    label: "Availability",
+    icon: CalendarDays,
+    isActive: (pathname: string) =>
+      pathname === "/cleaner/availability" ||
+      pathname.startsWith("/cleaner/availability/"),
   },
 ] as const;
 

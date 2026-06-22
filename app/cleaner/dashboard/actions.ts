@@ -125,6 +125,7 @@ export async function saveCleanerAvailabilityAction(
   }
 
   revalidatePath("/cleaner/dashboard");
+  revalidatePath("/cleaner/availability");
   revalidatePath("/client/cleaners");
   revalidatePath(`/client/cleaners/${user.id}`);
   return { success: true };
@@ -253,6 +254,9 @@ export async function toggleCleanerAvailability(): Promise<void> {
   }
 
   revalidatePath("/cleaner/dashboard");
+  revalidatePath("/cleaner/availability");
+  revalidatePath("/client/cleaners");
+  revalidatePath(`/client/cleaners/${user.id}`);
 }
 
 export async function acceptJobAction(

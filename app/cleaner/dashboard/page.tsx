@@ -7,18 +7,12 @@ import {
   ChevronRight,
   Clock,
   DollarSign,
-  Eye,
-  EyeOff,
   Inbox,
   MapPin,
   Wallet,
 } from "lucide-react";
 
 import { DashboardEmptyState } from "@/app/cleaner/_components/dashboard-empty-state";
-import {
-  toggleCleanerAvailability,
-} from "@/app/cleaner/dashboard/actions";
-import { AvailabilityEditor } from "@/app/cleaner/dashboard/availability-editor";
 import { CleanerStatsCard } from "@/app/cleaner/dashboard/cleaner-stats-card";
 import {
   PayoutSetupBanner,
@@ -126,8 +120,10 @@ function clientName(job: JobListing | PendingRequestPreview): string {
 
 function AvailabilitySummary({
   availabilityWindows,
+  isAcceptingRequests,
 }: {
   availabilityWindows: { day_of_week: number }[];
+  isAcceptingRequests: boolean;
 }) {
   const openDays = new Set(
     availabilityWindows.map((window) => window.day_of_week)
@@ -138,6 +134,12 @@ function AvailabilitySummary({
     <Card className="border border-border shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-sm">Availability this week</CardTitle>
+        <Link href="/cleaner/availability">
+          <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs">
+            Edit
+            <ChevronRight className="size-3" />
+          </Button>
+        </Link>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="flex gap-1.5">
@@ -154,8 +156,13 @@ function AvailabilitySummary({
         </div>
         <p className="mt-2 text-xs text-muted-foreground">
           {openCount === 0
-            ? "No days open — add availability below."
+            ? "No days open — add availability on the availability page."
             : `${openCount} of 7 days open`}
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {isAcceptingRequests
+            ? "Accepting new requests"
+            : "Not accepting new requests"}
         </p>
       </CardContent>
     </Card>
@@ -406,46 +413,13 @@ export default async function CleanerDashboardPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              Welcome, {welcomeName}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Here&apos;s what&apos;s on your plate today.
-            </p>
-          </div>
-          {cleanerProfile ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <div
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium ${
-                  cleanerProfile.is_available
-                    ? "border-primary/20 bg-accent text-accent-foreground"
-                    : "border-border bg-muted text-muted-foreground"
-                }`}
-              >
-                {cleanerProfile.is_available ? (
-                  <Eye className="size-3.5" />
-                ) : (
-                  <EyeOff className="size-3.5" />
-                )}
-                {cleanerProfile.is_available
-                  ? "Visible to clients"
-                  : "Hidden from clients"}
-              </div>
-              <form action={toggleCleanerAvailability}>
-                <Button
-                  type="submit"
-                  variant={cleanerProfile.is_available ? "outline" : "default"}
-                  size="sm"
-                >
-                  {cleanerProfile.is_available
-                    ? "Go invisible"
-                    : "Go visible"}
-                </Button>
-              </form>
-            </div>
-          ) : null}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-foreground">
+            Welcome, {welcomeName}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Here&apos;s what&apos;s on your plate today.
+          </p>
         </div>
 
         {cleanerProfile ? (
@@ -717,6 +691,7 @@ export default async function CleanerDashboardPage() {
 
                 <AvailabilitySummary
                   availabilityWindows={availabilityWindows ?? []}
+                  isAcceptingRequests={cleanerProfile.is_available}
                 />
               </>
             ) : null}
@@ -746,20 +721,6 @@ export default async function CleanerDashboardPage() {
             />
           )}
         </div>
-
-        {cleanerProfile ? (
-          <section className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-foreground">
-              Weekly availability
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Set when clients can request bookings. One time window per day.
-            </p>
-            <div className="mt-6">
-              <AvailabilityEditor initialWindows={availabilityWindows ?? []} />
-            </div>
-          </section>
-        ) : null}
 
         <section className="mt-10">
           <h2 className="mb-4 text-lg font-bold text-foreground">
